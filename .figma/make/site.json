@@ -1,0 +1,12 @@
+{
+  "title": "Heifer Academy — Practical learning for Nepal’s farming communities",
+  "description": "Explore free bilingual courses in agriculture, livestock, and community development, with video lessons, printable field guides, and practical notes for learners across Nepal.",
+  "language": "en",
+  "robots": {
+    "index": true
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

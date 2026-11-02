@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Mukta:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Manrope', 'Mukta', ui-sans-serif, system-ui, sans-serif;
+
+  /* Official Heifer International Nepal Brand Tokens (matching src/index.css) */
+  --color-primary-950: #082c49;
+  --color-primary-900: #0d416b;
+  --color-primary-700: #1d5c8f;
+  --color-primary-500: #2f7db8;
+  --color-primary-100: #e7f0f7;
+  --color-accent-500: #ffa438;
+  --color-teal-500: #3fc0c8;
+  --color-accent-100: #fff1de;
+
+  /* Editorial Daylight Surfaces */
+  --color-canvas: #fafaf9;
+  --color-card: #ffffff;
+  --color-subtle: #f3f4f6;
+  --color-line: #e5e7eb;
+  --color-line-strong: #d1d5db;
+  --color-ink: #1e1c19;
+  --color-ink-2: #4f4f4f;
+  --color-ink-3: #9a9a9a;
+  --color-brand: #0d416b;
+  --color-ochre: #a3521f;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  --shadow-soft: 0px 1px 3px rgba(0, 0, 0, 0.05), 0px 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-card: 0px 12px 32px -12px rgba(8, 44, 73, 0.16);
+  --shadow-modal: 0px 14px 34px -8px rgba(8, 44, 73, 0.22), 0px 8px 12px -6px rgba(0, 0, 0, 0.06);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    color-scheme: light;
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 500;
+  }
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  label,
+  summary,
+  [role='button'] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: #ffd9a8;
+    color: #082c49;
+  }
+}
+
+.ne-font {
+  font-family: 'Mukta', 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.65;
+}
+
+.contours {
+  background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.09) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}

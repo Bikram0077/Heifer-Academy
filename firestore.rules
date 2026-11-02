@@ -1,0 +1,162 @@
+rules_version = '2';
+
+// Heifer Academy CMS - Firestore Security Rules
+//
+// Collections
+//   live/{id}       Published content. Public read. Editors publish.
+//   drafts/{id}     Working copies. Staff read. Editors write.
+//   users/{uid}     Staff profiles with role: viewer | editor | super_admin.
+//   invites/{email} Pending invitations created by super admins.
+//   meta/bootstrap  Exists once the first super admin has been created.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+    function bootstrapPath() {
+      return /databases/$(database)/documents/meta/bootstrap;
+    }
+    function myEmail() {
+      return signedIn() && request.auth.token.email is string
+        ? request.auth.token.email.lower()
+        : '';
+    }
+    function hasProfile() {
+      return signedIn() && exists(userPath(request.auth.uid));
+    }
+    function me() {
+      return get(userPath(request.auth.uid)).data;
+    }
+    function active() {
+      return hasProfile() && me().disabled != true;
+    }
+    function hasRole(roles) {
+      return active() && me().role in roles;
+    }
+    function isStaff() {
+      return hasRole(['viewer', 'editor', 'super_admin']);
+    }
+    function isEditor() {
+      return hasRole(['editor', 'super_admin']);
+    }
+    function isSuper() {
+      return hasRole(['super_admin']);
+    }
+    function validRole(r) {
+      return r in ['viewer', 'editor', 'super_admin'];
+    }
+
+    function validContent() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['type', 'data', 'order', 'updatedBy'])
+        && d.keys().hasOnly([
+          'type',
+          'data',
+          'order',
+          'updatedBy',
+          'updatedByEmail',
+          'updatedByName',
+          'updatedAt',
+          'publishedAt'
+        ])
+        && d.type in ['course', 'category', 'testimonial', 'faq', 'partner', 'page', 'strings', 'settings']
+        && d.data is map
+        && d.order is number
+        && d.updatedBy == request.auth.uid;
+    }
+    // Site settings may only be changed by super admins.
+    function canWriteType(t) {
+      return t != 'settings' || isSuper();
+    }
+
+    // ---------- content ----------
+
+    match /live/{id} {
+      allow read: if true;
+      allow create, update: if isEditor() && id.size() <= 128 && validContent() && canWriteType(request.resource.data.type);
+      allow delete: if isEditor() && canWriteType(resource.data.type);
+    }
+
+    match /drafts/{id} {
+      allow read: if isStaff();
+      allow create, update: if isEditor() && id.size() <= 128 && validContent() && canWriteType(request.resource.data.type);
+      allow delete: if isEditor() && canWriteType(resource.data.type);
+    }
+
+    // ---------- users & access ----------
+
+    // First account ever: becomes super admin, atomically with meta/bootstrap.
+    function bootstrapCreate() {
+      return request.resource.data.role == 'super_admin'
+        && !exists(bootstrapPath())
+        && existsAfter(bootstrapPath());
+    }
+    // Invited account: role must match the pending invite for this email.
+    function inviteCreate() {
+      let inv = /databases/$(database)/documents/invites/$(myEmail());
+      return exists(inv) && get(inv).data.role == request.resource.data.role;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'name', 'role', 'disabled', 'createdAt'])
+        && request.resource.data.email == myEmail()
+        && request.resource.data.disabled == false
+        && validRole(request.resource.data.role)
+        && (bootstrapCreate() || inviteCreate());
+
+      allow update: if
+        // Super admins manage other people's role / access (never their own, so
+        // there is always at least one super admin).
+        (isSuper()
+          && uid != request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'disabled'])
+          && validRole(request.resource.data.role)
+          && request.resource.data.disabled is bool)
+        ||
+        // Anyone active may change their own display name.
+        (active()
+          && uid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 80);
+
+      allow delete: if isSuper() && uid != request.auth.uid;
+    }
+
+    match /meta/bootstrap {
+      allow read: if true;
+      allow create: if signedIn()
+        && !exists(bootstrapPath())
+        && request.resource.data.uid == request.auth.uid
+        && getAfter(userPath(request.auth.uid)).data.role == 'super_admin';
+      allow update, delete: if false;
+    }
+
+    match /invites/{email} {
+      allow read: if isSuper() || (signedIn() && myEmail() == email);
+      allow create, update: if isSuper()
+        && email == email.lower()
+        && email.size() <= 254
+        && request.resource.data.keys().hasOnly(['email', 'name', 'role', 'invitedBy', 'invitedAt'])
+        && request.resource.data.email == email
+        && validRole(request.resource.data.role);
+      allow delete: if isSuper() || (signedIn() && myEmail() == email);
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

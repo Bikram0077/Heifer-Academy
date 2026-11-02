@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "powershell": "$body = [Console]::In.ReadToEnd(); try { Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:4895/hook/task-drift?agent=copilot&cwd=c%3A%5CUsers%5Cbdham%5CDownloads%5CDesign%20Heifer%20Academy%20Learning%20Platform' -Method POST -Headers @{ 'Content-Type' = 'application/json' } -Body $body | Out-Null } catch { }",
+        "timeoutSec": 8
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "powershell": "$body = [Console]::In.ReadToEnd(); try { Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:4895/hook/task-drift?agent=copilot&cwd=c%3A%5CUsers%5Cbdham%5CDownloads%5CDesign%20Heifer%20Academy%20Learning%20Platform' -Method POST -Headers @{ 'Content-Type' = 'application/json' } -Body $body | Out-Null } catch { }",
+        "timeoutSec": 8
+      }
+    ]
+  }
+}
