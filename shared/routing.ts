@@ -35,19 +35,19 @@ export function parseRoute(hash: string): Route {
   if (path === '/resources' || path === '/materials') return { name: 'resources', cat: catParam }
 
   let m: RegExpMatchArray | null
-  if ((m = path.match(/^\/(?:material|materials|resources)\/([\w.%-]+)$/))) {
+  if ((m = path.match(/^\/(?:material|materials|resources)\/([^\/?#]+)$/))) {
     return { name: 'material', id: safeDecode(m[1]) }
   }
-  if ((m = path.match(/^\/course\/([\w.%-]+)$/))) {
+  if ((m = path.match(/^\/course\/([^\/?#]+)$/))) {
     return { name: 'course', id: healCourseId(safeDecode(m[1])) }
   }
-  if ((m = path.match(/^\/learn\/([\w.%-]+)(?:\/(\d+))?$/))) {
+  if ((m = path.match(/^\/learn\/([^\/?#]+)(?:\/(\d+))?$/))) {
     return { name: 'learn', id: healCourseId(safeDecode(m[1])), n: Number(m[2] ?? 0) }
   }
   if ((m = path.match(/^\/(about|privacy|terms|accessibility)$/))) {
     return { name: 'page', slug: m[1] as 'about' }
   }
-  if ((m = path.match(/^\/page\/([\w.%-]+)$/))) {
+  if ((m = path.match(/^\/page\/([^\/?#]+)$/))) {
     return { name: 'customPage', slug: safeDecode(m[1]) }
   }
   return { name: 'notFound', path }

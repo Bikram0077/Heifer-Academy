@@ -169,6 +169,8 @@ export type Testimonial = {
   name: string
   role: Bi
   source: string
+  photo?: string
+  photoUrl?: string
   order?: number
 }
 
@@ -182,6 +184,9 @@ export type FaqItem = {
 export type PartnerItem = {
   id?: string
   name: string
+  logo?: string
+  logoUrl?: string
+  url?: string
   order?: number
 }
 

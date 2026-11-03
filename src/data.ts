@@ -739,7 +739,7 @@ export const ui = {
   },
 } satisfies Record<string, Bi>
 
-export const testimonials: { quote: Bi; name: string; role: Bi; source: string }[] = [
+export const testimonials: { quote: Bi; name: string; role: Bi; source: string; photo?: string }[] = [
   {
     quote: {
       en: '“We realized that we couldn’t work singlehandedly, that we had to work together. We got to know our sisters. It unites us.”',
@@ -748,6 +748,7 @@ export const testimonials: { quote: Bi; name: string; role: Bi; source: string }
     name: 'Tulsi Thapa',
     role: { en: 'Cooperative Chairperson, Bihani Dairy', ne: 'सहकारी अध्यक्ष, बिहानी डेरी' },
     source: 'https://www.heifer.org/blog/women-of-bihani-dairy-nepal-give-back-to-community-create-opportunities',
+    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
   },
   {
     quote: {
@@ -757,6 +758,7 @@ export const testimonials: { quote: Bi; name: string; role: Bi; source: string }
     name: 'Kusu',
     role: { en: 'Certified Animal Health Service Provider', ne: 'प्रमाणित पशु स्वास्थ्य सेवा प्रदायक' },
     source: 'https://www.heifer.org/blog/online-training-opens-doors-for-a-mother-in-nepal.html',
+    photo: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&q=80',
   },
   {
     quote: {
@@ -766,6 +768,7 @@ export const testimonials: { quote: Bi; name: string; role: Bi; source: string }
     name: 'Dilip Bhandari',
     role: { en: 'Senior Director of Programs, Heifer International', ne: 'वरिष्ठ कार्यक्रम निर्देशक, हेफर इन्टरनेसनल' },
     source: 'https://www.heifer.org/blog/subsidy-sucess-holds-promise-for-nepali-farmers.html',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
   },
 ]
 
@@ -807,16 +810,72 @@ export const faqs: { q: Bi; a: Bi }[] = [
   },
 ]
 
-export const partners = [
-  'Ministry of Agriculture and Livestock Development',
-  'Department of Livestock Services',
-  'Social Entrepreneur Women’s Alliance (SEWA)',
-  'Heifer Korea',
-  'Nepal Agricultural Research Council',
-  'National Cooperative Federation of Nepal',
-  'University of Florida',
-  'Kathmandu University',
+export const partnerLogos: Record<string, string> = {
+  'Ministry of Agriculture and Livestock Development': '/partners/moald.svg',
+  'Department of Livestock Services': '/partners/dls.svg',
+  'Social Entrepreneur Women’s Alliance (SEWA)': '/partners/sewa.svg',
+  'Heifer Korea': '/partners/heifer-korea.svg',
+  'Nepal Agricultural Research Council': '/partners/narc.svg',
+  'National Cooperative Federation of Nepal': '/partners/ncf.svg',
+  'University of Florida': '/partners/florida.svg',
+  'Kathmandu University': '/partners/ku.svg',
+}
+
+export const partners: import('@shared/schema').PartnerItem[] = [
+  {
+    name: 'Ministry of Agriculture and Livestock Development',
+    logo: '/partners/moald.svg',
+    url: 'https://moald.gov.np',
+  },
+  {
+    name: 'Department of Livestock Services',
+    logo: '/partners/dls.svg',
+    url: 'https://dls.gov.np',
+  },
+  {
+    name: 'Social Entrepreneur Women’s Alliance (SEWA)',
+    logo: '/partners/sewa.svg',
+    url: 'https://sewabharat.org',
+  },
+  {
+    name: 'Heifer Korea',
+    logo: '/partners/heifer-korea.svg',
+    url: 'https://heiferkorea.org',
+  },
+  {
+    name: 'Nepal Agricultural Research Council',
+    logo: '/partners/narc.svg',
+    url: 'http://narc.gov.np',
+  },
+  {
+    name: 'National Cooperative Federation of Nepal',
+    logo: '/partners/ncf.svg',
+    url: 'https://ncfnepal.com.np',
+  },
+  {
+    name: 'University of Florida',
+    logo: '/partners/florida.svg',
+    url: 'https://ifas.ufl.edu',
+  },
+  {
+    name: 'Kathmandu University',
+    logo: '/partners/ku.svg',
+    url: 'https://ku.edu.np',
+  },
 ]
+
+export function normalizePartner(p: string | import('@shared/schema').PartnerItem): import('@shared/schema').PartnerItem {
+  if (typeof p === 'string') {
+    return {
+      name: p,
+      logo: partnerLogos[p] || undefined,
+    }
+  }
+  return {
+    ...p,
+    logo: p.logo || p.logoUrl || (p.name ? partnerLogos[p.name] : undefined),
+  }
+}
 
 export const roles: { id: string; label: Bi }[] = [
   { id: 'farmer', label: { en: 'Farmer', ne: 'किसान' } },

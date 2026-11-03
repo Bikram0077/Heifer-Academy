@@ -15,6 +15,7 @@ import type {
   Category,
   Testimonial,
   FaqItem,
+  PartnerItem,
   PageContent,
   HomePageData,
   LayoutConfig,
@@ -31,6 +32,7 @@ import {
   testimonials as defaultTestimonials,
   faqs as defaultFaqs,
   partners as defaultPartners,
+  normalizePartner,
   defaultPages,
   defaultHomeData,
   defaultLayoutConfig,
@@ -61,15 +63,15 @@ export type PendingChangeItem = {
   updatedAt: string
   updatedByLabel: string
   navTab:
-    | 'courses'
-    | 'course-edit'
-    | 'categories'
-    | 'materials'
-    | 'homepage'
-    | 'header-footer'
-    | 'pages'
-    | 'strings'
-    | 'settings'
+  | 'courses'
+  | 'course-edit'
+  | 'categories'
+  | 'materials'
+  | 'homepage'
+  | 'header-footer'
+  | 'pages'
+  | 'strings'
+  | 'settings'
   courseId?: string
 }
 
@@ -87,7 +89,7 @@ type CmsContextType = {
   getCategories: () => ItemWithStatus<Category[]>
   getTestimonials: () => ItemWithStatus<Testimonial[]>
   getFaqs: () => ItemWithStatus<FaqItem[]>
-  getPartners: () => ItemWithStatus<string[]>
+  getPartners: () => ItemWithStatus<PartnerItem[]>
   getHomePage: () => ItemWithStatus<PageContent>
   getLayoutPage: () => ItemWithStatus<PageContent>
   getResourcesPage: () => ItemWithStatus<PageContent>
@@ -789,14 +791,15 @@ export function CmsProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const getPartners = (): ItemWithStatus<string[]> => {
+  const getPartners = (): ItemWithStatus<PartnerItem[]> => {
     const docId = 'partners'
     const draft = draftDocs[docId]
     const live = liveDocs[docId]
     const status = getDocStatus(docId)
     const base = draft || live
-    const rawItems = unwrapArrayPayload<string | { name: string }>(base?.data, defaultPartners)
-    const data = rawItems.map((x) => (typeof x === 'string' ? x : x.name)).filter(Boolean)
+    const fallback = defaultPartners.map((p, idx) => ({ ...normalizePartner(p), id: `part_${idx + 1}`, order: idx }))
+    const rawItems = unwrapArrayPayload<PartnerItem | string>(base?.data, fallback)
+    const data = rawItems.map(normalizePartner)
 
     return {
       id: docId,

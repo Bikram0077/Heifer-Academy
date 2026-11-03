@@ -5,6 +5,7 @@ import type {
   FaqItem,
   HomePageData,
   PageContent,
+  PartnerItem,
   Testimonial,
   ValuePillar,
 } from '@shared/schema'
@@ -38,7 +39,7 @@ type CombinedHomepageState = {
   homeData: HomePageData
   testimonials: Testimonial[]
   faqs: FaqItem[]
-  partners: string[]
+  partners: PartnerItem[]
 }
 
 export function HomepagePage() {
@@ -88,7 +89,11 @@ export function HomepagePage() {
     useSyncedFormState<CombinedHomepageState>(combinedRemote, 'homepage_all', versionKey)
 
   const [sectionTab, setSectionTab] = useState<HomeSectionTab>('hero')
-  const [newPartner, setNewPartner] = useState('')
+  const [newPartner, setNewPartner] = useState<{ name: string; logo: string; url: string }>({
+    name: '',
+    logo: '',
+    url: '',
+  })
 
   const hasDraft =
     homeDoc.status === 'draft_changes' ||
@@ -137,7 +142,12 @@ export function HomepagePage() {
           form.faqs.map((f, i) => ({ ...f, order: i })),
           0
         ),
-        saveDraft('partners', 'partner', form.partners.filter((p) => p.trim() !== ''), 0),
+        saveDraft(
+          'partners',
+          'partner',
+          form.partners.filter((p) => p.name.trim() !== '').map((p, i) => ({ ...p, order: i })),
+          0
+        ),
       ])
       markClean()
       showToast('All homepage sections saved as drafts.')
@@ -163,7 +173,12 @@ export function HomepagePage() {
           form.faqs.map((f, i) => ({ ...f, order: i })),
           0
         ),
-        saveAndPublish('partners', 'partner', form.partners.filter((p) => p.trim() !== ''), 0),
+        saveAndPublish(
+          'partners',
+          'partner',
+          form.partners.filter((p) => p.name.trim() !== '').map((p, i) => ({ ...p, order: i })),
+          0
+        ),
       ])
       markClean()
       showToast('Homepage published live! Every updated section is now visible on the main website.')
@@ -829,6 +844,7 @@ export function HomepagePage() {
                           id: `test_${Date.now()}`,
                           name: '',
                           source: 'Heifer International Nepal',
+                          photo: '',
                           role: { en: '', ne: '' },
                           quote: { en: '', ne: '' },
                         },
@@ -937,6 +953,107 @@ export function HomepagePage() {
                         }
                         className="w-full rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink focus:border-primary-700 focus:ring-4 focus:ring-primary-100 focus:outline-none disabled:bg-subtle"
                       />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="mb-1.5 block text-xs font-bold tracking-wide text-ink uppercase">
+                        Photo URL (Profile Picture)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div className="size-12 shrink-0 overflow-hidden rounded-full border border-line bg-subtle">
+                          {t.photo || t.photoUrl ? (
+                            <img
+                              src={t.photo || t.photoUrl}
+                              alt={t.name || 'Preview'}
+                              className="size-full object-cover"
+                              onError={(e) => {
+                                ;(e.currentTarget as HTMLElement).style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <div className="flex size-full items-center justify-center font-bold text-xs text-ink-3">
+                              No Pic
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="url"
+                          disabled={!isEditor}
+                          value={t.photo || t.photoUrl || ''}
+                          placeholder="https://... (direct image URL)"
+                          onChange={(e) =>
+                            updateForm((p) => ({
+                              ...p,
+                              testimonials: p.testimonials.map((item, k) =>
+                                k === idx ? { ...item, photo: e.target.value, photoUrl: e.target.value } : item
+                              ),
+                            }))
+                          }
+                          className="flex-1 rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink focus:border-primary-700 focus:ring-4 focus:ring-primary-100 focus:outline-none disabled:bg-subtle"
+                        />
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-semibold text-ink-3">Presets:</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateForm((p) => ({
+                              ...p,
+                              testimonials: p.testimonials.map((item, k) =>
+                                k === idx
+                                  ? {
+                                      ...item,
+                                      photo:
+                                        'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
+                                    }
+                                  : item
+                              ),
+                            }))
+                          }
+                          className="rounded-md border border-line bg-card px-2 py-0.5 text-[11px] font-medium text-ink-2 hover:bg-subtle"
+                        >
+                          Tulsi Thapa Photo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateForm((p) => ({
+                              ...p,
+                              testimonials: p.testimonials.map((item, k) =>
+                                k === idx
+                                  ? {
+                                      ...item,
+                                      photo:
+                                        'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&q=80',
+                                    }
+                                  : item
+                              ),
+                            }))
+                          }
+                          className="rounded-md border border-line bg-card px-2 py-0.5 text-[11px] font-medium text-ink-2 hover:bg-subtle"
+                        >
+                          Kusu Photo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateForm((p) => ({
+                              ...p,
+                              testimonials: p.testimonials.map((item, k) =>
+                                k === idx
+                                  ? {
+                                      ...item,
+                                      photo:
+                                        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+                                    }
+                                  : item
+                              ),
+                            }))
+                          }
+                          className="rounded-md border border-line bg-card px-2 py-0.5 text-[11px] font-medium text-ink-2 hover:bg-subtle"
+                        >
+                          Dilip Bhandari Photo
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1152,103 +1269,228 @@ export function HomepagePage() {
             description="Organizations displayed in the continuous partner marquee strip above the bottom CTA."
           >
             {isEditor && (
-              <div className="mb-5 flex flex-col gap-2.5 sm:flex-row">
-                <input
-                  type="text"
-                  value={newPartner}
-                  onChange={(e) => setNewPartner(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newPartner.trim()) {
-                      e.preventDefault()
-                      updateForm((p) => ({
-                        ...p,
-                        partners: [...p.partners, newPartner.trim()],
-                      }))
-                      setNewPartner('')
-                    }
-                  }}
-                  placeholder="Enter partner organization name (e.g. SEWA Cooperative Network)..."
-                  className="flex-1 rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-primary-700 focus:ring-4 focus:ring-primary-100 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!newPartner.trim()) return
-                    updateForm((p) => ({
-                      ...p,
-                      partners: [...p.partners, newPartner.trim()],
-                    }))
-                    setNewPartner('')
-                  }}
-                  className="inline-flex h-10.5 shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary-900 px-5 text-xs font-bold text-white hover:bg-primary-700"
-                >
-                  <PlusIcon size={15} />
-                  Add Partner
-                </button>
+              <div className="mb-6 rounded-xl border border-line bg-canvas p-4 space-y-3">
+                <span className="text-xs font-bold tracking-wider text-brand uppercase">
+                  Add New Partner Organization
+                </span>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <input
+                    type="text"
+                    value={newPartner.name}
+                    onChange={(e) => setNewPartner((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="Organization Name (e.g. Heifer Korea)..."
+                    className="rounded-xl border border-line-strong bg-card px-3.5 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-primary-700 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={newPartner.logo}
+                    onChange={(e) => setNewPartner((p) => ({ ...p, logo: e.target.value }))}
+                    placeholder="Logo URL (e.g. /partners/heifer-korea.svg)..."
+                    className="rounded-xl border border-line-strong bg-card px-3.5 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-primary-700 focus:outline-none"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={newPartner.url}
+                      onChange={(e) => setNewPartner((p) => ({ ...p, url: e.target.value }))}
+                      placeholder="Website URL (optional)..."
+                      className="flex-1 rounded-xl border border-line-strong bg-card px-3.5 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-primary-700 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newPartner.name.trim()) return
+                        updateForm((p) => ({
+                          ...p,
+                          partners: [
+                            ...p.partners,
+                            {
+                              name: newPartner.name.trim(),
+                              logo: newPartner.logo.trim() || undefined,
+                              url: newPartner.url.trim() || undefined,
+                            },
+                          ],
+                        }))
+                        setNewPartner({ name: '', logo: '', url: '' })
+                      }}
+                      className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary-900 px-4 text-xs font-bold text-white hover:bg-primary-700"
+                    >
+                      <PlusIcon size={14} />
+                      Add
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
-            <div className="space-y-2.5">
+            <div className="space-y-4">
               {form.partners.map((partner, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-2.5 rounded-xl border border-line bg-canvas p-2.5"
+                  className="rounded-xl border border-line bg-canvas p-4 space-y-3"
                 >
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-xs font-extrabold text-brand">
-                    {idx + 1}
-                  </span>
-                  <input
-                    type="text"
-                    disabled={!isEditor}
-                    value={partner}
-                    onChange={(e) =>
-                      updateForm((p) => ({
-                        ...p,
-                        partners: p.partners.map((x, k) => (k === idx ? e.target.value : x)),
-                      }))
-                    }
-                    className="flex-1 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-sm font-medium text-ink focus:border-primary-700 focus:bg-card focus:outline-none"
-                  />
+                  <div className="flex items-center justify-between border-b border-line pb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-xs font-extrabold text-brand">
+                        {idx + 1}
+                      </span>
+                      <span className="text-xs font-bold text-ink truncate max-w-[200px] sm:max-w-xs">
+                        {partner.name || 'Untitled Partner'}
+                      </span>
+                    </div>
+                    {isEditor && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() =>
+                            updateForm((p) => ({
+                              ...p,
+                              partners: moveItem(p.partners, idx, -1),
+                            }))
+                          }
+                          className="rounded-lg border border-line bg-card p-1.5 text-ink-2 hover:text-ink disabled:opacity-30"
+                        >
+                          <ArrowUpIcon size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === form.partners.length - 1}
+                          onClick={() =>
+                            updateForm((p) => ({
+                              ...p,
+                              partners: moveItem(p.partners, idx, 1),
+                            }))
+                          }
+                          className="rounded-lg border border-line bg-card p-1.5 text-ink-2 hover:text-ink disabled:opacity-30"
+                        >
+                          <ArrowDownIcon size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateForm((p) => ({
+                              ...p,
+                              partners: p.partners.filter((_, k) => k !== idx),
+                            }))
+                          }
+                          className="rounded-lg border border-line bg-card p-1.5 text-ink-2 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                        >
+                          <TrashIcon size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-bold tracking-wide text-ink uppercase">
+                        Organization Name
+                      </label>
+                      <input
+                        type="text"
+                        disabled={!isEditor}
+                        value={partner.name}
+                        onChange={(e) =>
+                          updateForm((p) => ({
+                            ...p,
+                            partners: p.partners.map((x, k) =>
+                              k === idx ? { ...x, name: e.target.value } : x
+                            ),
+                          }))
+                        }
+                        className="w-full rounded-xl border border-line-strong bg-card px-3 py-2 text-sm text-ink focus:border-primary-700 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-bold tracking-wide text-ink uppercase">
+                        Logo URL / Path
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-9 w-14 shrink-0 items-center justify-center rounded-lg border border-line bg-card p-1">
+                          {partner.logo || partner.logoUrl ? (
+                            <img
+                              src={partner.logo || partner.logoUrl}
+                              alt={partner.name}
+                              className="max-h-full max-w-full object-contain"
+                              onError={(e) => {
+                                ;(e.currentTarget as HTMLElement).style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <span className="text-[10px] text-ink-3">No Logo</span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          disabled={!isEditor}
+                          value={partner.logo || partner.logoUrl || ''}
+                          placeholder="/partners/moald.svg"
+                          onChange={(e) =>
+                            updateForm((p) => ({
+                              ...p,
+                              partners: p.partners.map((x, k) =>
+                                k === idx ? { ...x, logo: e.target.value, logoUrl: e.target.value } : x
+                              ),
+                            }))
+                          }
+                          className="flex-1 rounded-xl border border-line-strong bg-card px-3 py-2 text-sm text-ink focus:border-primary-700 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-bold tracking-wide text-ink uppercase">
+                        Website Link (Optional)
+                      </label>
+                      <input
+                        type="url"
+                        disabled={!isEditor}
+                        value={partner.url || ''}
+                        placeholder="https://..."
+                        onChange={(e) =>
+                          updateForm((p) => ({
+                            ...p,
+                            partners: p.partners.map((x, k) =>
+                              k === idx ? { ...x, url: e.target.value } : x
+                            ),
+                          }))
+                        }
+                        className="w-full rounded-xl border border-line-strong bg-card px-3 py-2 text-sm text-ink focus:border-primary-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
                   {isEditor && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        disabled={idx === 0}
-                        onClick={() =>
-                          updateForm((p) => ({
-                            ...p,
-                            partners: moveItem(p.partners, idx, -1),
-                          }))
-                        }
-                        className="rounded-lg border border-line bg-card p-1.5 text-ink-2 hover:text-ink disabled:opacity-30"
-                      >
-                        <ArrowUpIcon size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={idx === form.partners.length - 1}
-                        onClick={() =>
-                          updateForm((p) => ({
-                            ...p,
-                            partners: moveItem(p.partners, idx, 1),
-                          }))
-                        }
-                        className="rounded-lg border border-line bg-card p-1.5 text-ink-2 hover:text-ink disabled:opacity-30"
-                      >
-                        <ArrowDownIcon size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateForm((p) => ({
-                            ...p,
-                            partners: p.partners.filter((_, k) => k !== idx),
-                          }))
-                        }
-                        className="rounded-lg border border-line bg-card p-1.5 text-ink-2 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-                      >
-                        <TrashIcon size={13} />
-                      </button>
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] text-ink-3">
+                      <span className="font-semibold">Logo Presets:</span>
+                      {[
+                        { label: 'MoALD', path: '/partners/moald.svg' },
+                        { label: 'DLS', path: '/partners/dls.svg' },
+                        { label: 'SEWA', path: '/partners/sewa.svg' },
+                        { label: 'Heifer Korea', path: '/partners/heifer-korea.svg' },
+                        { label: 'NARC', path: '/partners/narc.svg' },
+                        { label: 'NCF', path: '/partners/ncf.svg' },
+                        { label: 'UF / IFAS', path: '/partners/florida.svg' },
+                        { label: 'Kathmandu Univ.', path: '/partners/ku.svg' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.path}
+                          type="button"
+                          onClick={() =>
+                            updateForm((p) => ({
+                              ...p,
+                              partners: p.partners.map((x, k) =>
+                                k === idx ? { ...x, logo: preset.path } : x
+                              ),
+                            }))
+                          }
+                          className="rounded-md border border-line bg-card px-2 py-0.5 font-medium text-ink-2 hover:bg-subtle hover:text-brand"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>

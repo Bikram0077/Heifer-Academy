@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 64" fill="none">
+  <rect width="240" height="64" rx="10" fill="#ffffff"/>
+  <rect x="0.5" y="0.5" width="239" height="63" rx="9.5" stroke="#E5E7EB"/>
+  <!-- DLS Veterinary Emblem -->
+  <g transform="translate(14, 10)">
+    <circle cx="22" cy="22" r="21" fill="#0D9488" opacity="0.1"/>
+    <circle cx="22" cy="22" r="20" stroke="#0D9488" stroke-width="1.5"/>
+    <!-- Horns / livestock silhouette -->
+    <path d="M12 18C15 15 20 17 22 21C24 17 29 15 32 18" stroke="#0D9488" stroke-width="2" stroke-linecap="round"/>
+    <path d="M16 23C16 28 19 33 22 34C25 33 28 28 28 23H16Z" fill="#0D9488" opacity="0.85"/>
+    <circle cx="19" cy="25" r="1" fill="#FFFFFF"/>
+    <circle cx="25" cy="25" r="1" fill="#FFFFFF"/>
+    <path d="M22 13V15" stroke="#EAB308" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <!-- Text Lockup -->
+  <text x="68" y="27" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#0F172A">DLS Nepal</text>
+  <text x="68" y="41" font-family="system-ui, sans-serif" font-size="9" font-weight="500" fill="#475569">Department of</text>
+  <text x="68" y="51" font-family="system-ui, sans-serif" font-size="8.5" font-weight="500" fill="#64748B">Livestock Services</text>
+</svg>

@@ -23,7 +23,21 @@ export function MaterialDetail({ id }: { id: string }) {
   const { allMaterials, categories, courses, ui } = useContent()
   const other: Lang = lang === 'en' ? 'ne' : 'en'
 
-  const item = allMaterials.find((m) => m.id === id)
+  const decodedId = (() => {
+    try {
+      return decodeURIComponent(id)
+    } catch {
+      return id
+    }
+  })()
+
+  const item = allMaterials.find(
+    (m) =>
+      m.id === id ||
+      m.id === decodedId ||
+      m.id.toLowerCase() === id.toLowerCase() ||
+      m.id.toLowerCase() === decodedId.toLowerCase()
+  )
   const [checked, setChecked] = useStored<number[]>(`ha-mat-check-${id}`, [])
 
   if (!item) {

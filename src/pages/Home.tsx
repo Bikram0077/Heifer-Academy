@@ -80,10 +80,10 @@ function Hero() {
       </Container>
 
       {/* Curved course carousel */}
-      <div className="relative mt-6 pb-4">
+      <div className="relative mt-6 pb-4 overflow-hidden">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-7 -left-[25px] z-[2] h-14 w-[calc(100%+50px)] rounded-[45%] bg-card md:-top-10 md:h-20"
+          className="pointer-events-none absolute -top-7 left-0 right-0 z-[2] h-14 w-full rounded-[45%] bg-card md:-top-10 md:h-20"
         />
         <div className="my-7 md:my-10">
           <div
@@ -382,6 +382,34 @@ function FeaturedMaterials() {
 
 /* ---------------- Testimonials ---------------- */
 
+function TestimonialAvatar({ photo, name }: { photo?: string; name: string }) {
+  const [loadError, setLoadError] = useState(false)
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
+  if (photo && !loadError) {
+    return (
+      <img
+        src={photo}
+        alt={name}
+        onError={() => setLoadError(true)}
+        className="size-12 shrink-0 rounded-full border-2 border-accent-500/80 object-cover shadow-sm"
+      />
+    )
+  }
+
+  return (
+    <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-accent-500 font-bold text-white shadow-sm">
+      {initials || 'HA'}
+    </span>
+  )
+}
+
 function Testimonials() {
   const { lang } = useApp()
   const { testimonials, ui, homeData } = useContent()
@@ -399,16 +427,14 @@ function Testimonials() {
         </div>
         <ul className="mt-12 grid gap-6 md:grid-cols-3">
           {testimonials.map((t, idx) => (
-            <li key={t.id || `${t.name}-${idx}`} className="flex flex-col rounded-lg border border-white/10 bg-white/[0.04] p-7">
+            <li key={t.id || `${t.name}-${idx}`} className="flex flex-col rounded-xl border border-white/10 bg-white/[0.04] p-7 transition hover:bg-white/[0.07]">
               <QuoteIcon size={32} className="text-accent-500" />
               <blockquote className="ne-relaxed mt-4 flex-1 text-[1.05rem] leading-relaxed text-white/90">{t.quote[lang]}</blockquote>
-              <div className="mt-6 flex items-center gap-3 border-t border-white/10 pt-5">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-500 font-semibold text-white">
-                  {t.name.split(' ').map((p) => p[0]).join('').slice(0, 2)}
-                </span>
+              <div className="mt-6 flex items-center gap-3.5 border-t border-white/10 pt-5">
+                <TestimonialAvatar photo={t.photo || t.photoUrl} name={t.name} />
                 <div className="min-w-0">
-                  <p className="font-semibold">{t.name}</p>
-                  <p className="text-sm text-white/65">{t.role[lang]}</p>
+                  <p className="font-semibold text-white truncate">{t.name}</p>
+                  <p className="text-xs text-white/70 line-clamp-2">{t.role[lang]}</p>
                 </div>
                 {t.source && sanitizeHref(t.source, '') && (
                   <a href={sanitizeHref(t.source, '')} target="_blank" rel="noopener noreferrer" aria-label={`${t.name} — source`} className="ml-auto flex size-9 shrink-0 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white">
@@ -475,24 +501,71 @@ function Faq() {
 
 /* ---------------- Partners marquee ---------------- */
 
+function PartnerLogoCard({ partner }: { partner: import('@shared/schema').PartnerItem | string }) {
+  const p = typeof partner === 'string' ? { name: partner } : partner
+  const logo = p.logo || p.logoUrl
+
+  const content = (
+    <div
+      title={p.name}
+      className="flex h-18 shrink-0 items-center gap-3.5 rounded-xl border border-line bg-card px-5 py-2.5 shadow-xs transition hover:border-primary-500 hover:shadow-md"
+    >
+      {logo ? (
+        <img
+          src={logo}
+          alt={p.name}
+          className="h-10 w-auto max-w-[170px] object-contain"
+          onError={(e) => {
+            ;(e.currentTarget as HTMLElement).style.display = 'none'
+          }}
+        />
+      ) : null}
+      <span className="text-xs font-bold tracking-tight text-ink-2 whitespace-nowrap">
+        {p.name}
+      </span>
+    </div>
+  )
+
+  if (p.url) {
+    return (
+      <a
+        href={p.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={p.name}
+        className="block focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-xl"
+      >
+        {content}
+      </a>
+    )
+  }
+
+  return content
+}
+
 function Partners() {
   const { lang } = useApp()
   const { partners, ui, homeData } = useContent()
   if (!partners.length) return null
   const eyebrow = homeData.partnersHeader?.eyebrow?.[lang] || ui.partnersTitle?.[lang]
+
   const row = (hidden?: boolean): ReactNode =>
-    partners.map((p, idx) => (
-      <li key={`${p}-${idx}${hidden ? '-dup' : ''}`} aria-hidden={hidden} className="flex h-16 shrink-0 items-center rounded-md border border-line bg-card px-6 text-[0.95rem] font-semibold whitespace-nowrap text-ink-2">
-        {p}
-      </li>
-    ))
+    partners.map((p, idx) => {
+      const key = typeof p === 'string' ? p : p.id || p.name
+      return (
+        <li key={`${key}-${idx}${hidden ? '-dup' : ''}`} aria-hidden={hidden} className="shrink-0">
+          <PartnerLogoCard partner={p} />
+        </li>
+      )
+    })
+
   return (
-    <section className="border-y border-line bg-card py-14">
+    <section className="border-y border-line bg-card py-14 overflow-hidden">
       <Container>
         <p className="text-center text-xs font-semibold tracking-[0.12em] text-ink-2 uppercase">{eyebrow}</p>
       </Container>
       <div className="group relative mt-8 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-        <ul className="flex w-max animate-marquee gap-4 group-hover:[animation-play-state:paused]">
+        <ul className="flex w-max animate-marquee gap-5 group-hover:[animation-play-state:paused]">
           {row()}
           {row(true)}
         </ul>

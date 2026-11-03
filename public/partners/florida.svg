@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 64" fill="none" role="img" aria-label="University of Florida IFAS Logo">
+  <rect width="240" height="64" rx="8" fill="#FFFFFF"/>
+  <g transform="translate(14, 12)">
+    <rect x="2" y="2" width="36" height="36" rx="6" fill="#0021A5"/>
+    <text x="20" y="25" font-family="'Times New Roman', serif" font-size="20" font-weight="900" fill="#FA4616" text-anchor="middle">UF</text>
+  </g>
+  <text x="64" y="27" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" fill="#0021A5" letter-spacing="0.3">UF / IFAS</text>
+  <text x="64" y="43" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="500" fill="#475569">Univ. of Florida Extension</text>
+</svg>

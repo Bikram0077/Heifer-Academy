@@ -33,6 +33,7 @@ import {
   testimonials as defaultTestimonials,
   faqs as defaultFaqs,
   partners as defaultPartners,
+  normalizePartner,
   defaultPages,
   defaultHomeData,
   defaultLayoutConfig,
@@ -49,7 +50,7 @@ export interface ContentContextValue {
   categories: { id: CategoryId; label: Bi }[]
   testimonials: Testimonial[]
   faqs: FaqItem[]
-  partners: string[]
+  partners: PartnerItem[]
   pages: Record<string, PageContent>
   customPages: Record<string, PageContent>
   homeData: HomePageData
@@ -143,7 +144,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<{ id: CategoryId; label: Bi }[]>(defaultCategories)
   const [testimonials, setTestimonials] = useState<Testimonial[]>(defaultTestimonials)
   const [faqs, setFaqs] = useState<FaqItem[]>(defaultFaqs)
-  const [partners, setPartners] = useState<string[]>(defaultPartners)
+  const [partners, setPartners] = useState<PartnerItem[]>(defaultPartners)
   const [pages, setPages] = useState<Record<string, PageContent>>(defaultPages)
   const [settings, setSettings] = useState<SiteSettings>(defaultSettings)
   const [uiStrings, setUiStrings] = useState<Record<string, Bi>>(defaultUi)
@@ -181,7 +182,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         let wrapperFaqs: FaqItem[] | null = null
         const legacyFaqs: FaqItem[] = []
 
-        let wrapperPartners: string[] | null = null
+        let wrapperPartners: (PartnerItem | string)[] | null = null
         const legacyPartners: PartnerItem[] = []
 
         const newPages: Record<string, PageContent> = { ...defaultPages }
@@ -232,6 +233,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
                   name: d.name,
                   role: d.role,
                   source: d.source || '',
+                  photo: d.photo || d.photoUrl,
                   id: d.id || docSnap.id,
                   order: raw.order ?? 0,
                 })
@@ -255,15 +257,17 @@ export function ContentProvider({ children }: { children: ReactNode }) {
               break
             }
             case 'partner': {
-              const d = raw.data as { items?: (PartnerItem | string)[] } & Partial<PartnerItem>
+              const d = raw.data as ({ items?: (PartnerItem | string)[] } & Partial<PartnerItem>) | (PartnerItem | string)[]
               if (Array.isArray(d)) {
-                wrapperPartners = d.map((x) => (typeof x === 'string' ? x : x.name)).filter(Boolean)
+                wrapperPartners = d
               } else if (d && Array.isArray(d.items)) {
-                wrapperPartners = d.items.map((x) => (typeof x === 'string' ? x : x.name)).filter(Boolean)
+                wrapperPartners = d.items
               } else if (d && d.name) {
                 legacyPartners.push({
                   id: d.id || docSnap.id,
                   name: d.name,
+                  logo: d.logo || d.logoUrl,
+                  url: d.url,
                   order: raw.order ?? 0,
                 })
               }
@@ -351,10 +355,10 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         }
 
         if (wrapperPartners !== null) {
-          setPartners(wrapperPartners)
+          setPartners((wrapperPartners as (PartnerItem | string)[]).map(normalizePartner))
         } else if (legacyPartners.length > 0) {
           legacyPartners.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-          setPartners(legacyPartners.map((p) => p.name))
+          setPartners(legacyPartners.map(normalizePartner))
         } else {
           setPartners(defaultPartners)
         }
