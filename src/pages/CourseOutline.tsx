@@ -81,7 +81,6 @@ export function CourseOutline({ course }: { course: Course }) {
     <>
       {/* Hero band */}
       <section className="relative overflow-hidden bg-primary-950 text-white">
-        <div aria-hidden className="contours absolute inset-0" />
         <div aria-hidden className="absolute inset-0 bg-[radial-gradient(40rem_30rem_at_90%_0%,rgb(45_106_79/0.55),transparent_70%)]" />
         <Container className="relative pt-8 pb-12 md:pt-10 lg:pb-20">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-white/70">

@@ -419,7 +419,6 @@ function Testimonials() {
 
   return (
     <section className="relative overflow-hidden bg-primary-950 py-16 text-white md:py-24">
-      <div aria-hidden className="contours absolute inset-0" />
       <Container className="relative">
         <div className="max-w-2xl">
           <Eyebrow>{eyebrow}</Eyebrow>
@@ -516,7 +515,7 @@ function PartnerLogoCard({ partner }: { partner: import('@shared/schema').Partne
           alt={p.name}
           className="h-10 w-auto max-w-[170px] object-contain"
           onError={(e) => {
-            ;(e.currentTarget as HTMLElement).style.display = 'none'
+            ; (e.currentTarget as HTMLElement).style.display = 'none'
           }}
         />
       ) : null}
@@ -549,11 +548,13 @@ function Partners() {
   if (!partners.length) return null
   const eyebrow = homeData.partnersHeader?.eyebrow?.[lang] || ui.partnersTitle?.[lang]
 
-  const row = (hidden?: boolean): ReactNode =>
-    partners.map((p, idx) => {
+  // Double items so that even on 4K/ultrawide displays, the animation track loops seamlessly
+  const doubled = [...partners, ...partners]
+  const row = (prefix: string): ReactNode =>
+    doubled.map((p, idx) => {
       const key = typeof p === 'string' ? p : p.id || p.name
       return (
-        <li key={`${key}-${idx}${hidden ? '-dup' : ''}`} aria-hidden={hidden} className="shrink-0">
+        <li key={`${prefix}-${key}-${idx}`} className="shrink-0">
           <PartnerLogoCard partner={p} />
         </li>
       )
@@ -564,10 +565,13 @@ function Partners() {
       <Container>
         <p className="text-center text-xs font-semibold tracking-[0.12em] text-ink-2 uppercase">{eyebrow}</p>
       </Container>
-      <div className="group relative mt-8 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-        <ul className="flex w-max animate-marquee gap-5 group-hover:[animation-play-state:paused]">
-          {row()}
-          {row(true)}
+      <div
+        className="group relative mt-8 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]"
+        aria-label="Partner Organizations"
+      >
+        <ul className="flex w-max animate-marquee gap-5">
+          {row('a')}
+          {row('b')}
         </ul>
       </div>
     </section>
@@ -586,7 +590,6 @@ function Cta() {
     <section className="py-16 md:py-24">
       <Container>
         <div className="relative overflow-hidden rounded-xl bg-primary-900 px-6 py-12 text-white md:px-14 md:py-16">
-          <div aria-hidden className="contours absolute inset-0" />
           <div aria-hidden className="absolute inset-0 bg-[radial-gradient(28rem_20rem_at_100%_0%,rgb(217_119_6/0.28),transparent_70%)]" />
           <div className="relative flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
             <div className="max-w-2xl">

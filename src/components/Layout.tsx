@@ -461,7 +461,7 @@ export function Footer() {
   return (
     <footer className="mt-auto bg-primary-950 text-white print:hidden">
       {f.showTopBanner !== false && (
-        <div className="contours border-b border-white/10">
+        <div className="border-b border-white/10">
           <Container className="flex flex-col items-start justify-between gap-6 py-12 md:flex-row md:items-center">
             <div>
               <p className="text-xs font-semibold tracking-[0.12em] text-white/60 uppercase">{initiativeText}</p>

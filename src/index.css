@@ -120,13 +120,25 @@
 }
 
 @keyframes marquee {
-  from {
-    transform: translateX(0);
+  0% {
+    transform: translate3d(0, 0, 0);
   }
 
-  to {
-    transform: translateX(-50%);
+  100% {
+    transform: translate3d(-50%, 0, 0);
   }
+}
+
+.animate-marquee {
+  display: flex !important;
+  width: max-content !important;
+  animation: marquee 32s linear infinite !important;
+  will-change: transform;
+}
+
+.animate-marquee:hover,
+.group:hover .animate-marquee {
+  animation-play-state: paused !important;
 }
 
 @layer base {
@@ -202,8 +214,7 @@ html[lang='ne'] .ne-relaxed {
 }
 
 .contours {
-  background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.09) 1px, transparent 0);
-  background-size: 22px 22px;
+  display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -211,9 +222,7 @@ html[lang='ne'] .ne-relaxed {
     scroll-behavior: auto;
   }
 
-  *,
-  *::before,
-  *::after {
+  *:not(.animate-marquee):not(.animate-marquee *) {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;

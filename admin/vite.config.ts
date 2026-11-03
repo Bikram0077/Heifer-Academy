@@ -48,6 +48,23 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5174,
     strictPort: true,
+    watch: {
+      ignored: [
+        '**/.figma/**',
+        '**/.claude/**',
+        '**/.firebase/**',
+        '**/.agents/**',
+        '**/.cursor/**',
+        '**/.kiro/**',
+        '**/.github/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/admin/dist/**',
+        '**/*.log',
+        '**/node_modules/**',
+        '**/.system_generated/**',
+      ],
+    },
     fs: {
       allow: [path.resolve(__dirname, '..')],
     },
