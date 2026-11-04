@@ -33,10 +33,21 @@ export function useStored<T>(key: string, init: T) {
 
 /* ---------- routing ---------- */
 
+export function getCurrentRouteString(): string {
+  if (typeof window === 'undefined') return '/'
+  const hash = window.location.hash
+  if (hash && (hash.startsWith('#/') || hash.startsWith('#!/'))) {
+    return hash
+  }
+  const pathname = window.location.pathname
+  const search = window.location.search
+  return (pathname && pathname !== '/') ? `${pathname}${search}` : (hash || '/')
+}
+
 export function useRoute() {
-  const [route, setRoute] = useState(() => parseRoute(window.location.hash))
+  const [route, setRoute] = useState(() => parseRoute(getCurrentRouteString()))
   useEffect(() => {
-    const on = () => setRoute(parseRoute(window.location.hash))
+    const on = () => setRoute(parseRoute(getCurrentRouteString()))
     window.addEventListener('hashchange', on)
     window.addEventListener('popstate', on)
     return () => {
@@ -47,12 +58,20 @@ export function useRoute() {
   return route
 }
 
-export const go = (path: string) => { window.location.hash = path }
+export const go = (path: string) => {
+  if (typeof window === 'undefined') return
+  if (path.startsWith('#')) {
+    window.location.hash = path
+  } else {
+    window.history.pushState(null, '', path)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  }
+}
 
 /** Navigate home (if needed) and scroll to a section id. */
 export function goToSection(id: string) {
   const scroll = () => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  if (parseRoute(window.location.hash).name === 'home') scroll()
+  if (parseRoute(getCurrentRouteString()).name === 'home') scroll()
   else {
     go('/')
     setTimeout(scroll, 120)

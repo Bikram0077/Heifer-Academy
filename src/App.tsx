@@ -3,6 +3,7 @@ import { isExternalHttpUrl, sanitizeHref } from '@shared/url'
 import { AppProvider, getPageIdentity, useApp, useRoute } from './lib'
 import { ContentProvider, useContent } from './content'
 import { Container, Footer, Header, ReadingLine } from './components/Layout'
+import { Button } from './components/ui'
 import { ArrowLeft, BookIcon, FileTextIcon, SearchIcon } from './components/icons'
 import { PulseModal } from './components/PulseModal'
 import { lessonsOf } from './data'
@@ -100,27 +101,15 @@ function NotFoundView({ kind }: { kind: 'course' | 'page' }) {
           {sub}
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <a
-            href="#/"
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-primary-900 px-6 text-sm font-semibold text-white shadow-soft transition-colors hover:bg-primary-700"
-          >
-            <ArrowLeft size={16} />
+          <Button href="#/" variant="primary" icon={<ArrowLeft size={16} />}>
             {ui.home?.[lang] || (lang === 'en' ? 'Back to Home' : 'गृहपृष्ठ')}
-          </a>
-          <a
-            href="#/courses"
-            className="inline-flex h-11 items-center gap-2 rounded-full border border-line-strong bg-card px-6 text-sm font-semibold text-ink transition-colors hover:border-primary-700 hover:text-brand"
-          >
-            <BookIcon size={16} />
+          </Button>
+          <Button href="#/courses" variant="outline" icon={<BookIcon size={16} />}>
             {ui.allCourses?.[lang] || (lang === 'en' ? 'Explore Courses' : 'सबै पाठ्यक्रमहरू')}
-          </a>
-          <a
-            href="#/resources"
-            className="inline-flex h-11 items-center gap-2 rounded-full border border-line-strong bg-card px-6 text-sm font-semibold text-ink transition-colors hover:border-primary-700 hover:text-brand"
-          >
-            <FileTextIcon size={16} />
+          </Button>
+          <Button href="#/resources" variant="outline" icon={<FileTextIcon size={16} />}>
             {ui.resources?.[lang] || (lang === 'en' ? 'Field Materials' : 'सिकाइ सामग्री')}
-          </a>
+          </Button>
         </div>
         <div className="mt-10 border-t border-line pt-6 text-xs text-ink-3">
           <span>{lang === 'en' ? 'Need help? Contact us at ' : 'मद्दत चाहिन्छ? हामीलाई सम्पर्क गर्नुहोस्: '}</span>
