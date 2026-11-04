@@ -109,15 +109,24 @@ export function PulseModal({ open, onClose }: { open: boolean; onClose: () => vo
         if (feedbackPayload.gender) cleanDoc.gender = feedbackPayload.gender
 
         await addDoc(collection(db, 'feedback'), cleanDoc)
+      } else {
+        throw new Error('Database service is currently unreachable.')
       }
-    } catch (err) {
-      console.warn('Real-time Firestore feedback submission failed, saving to local state:', err)
-    }
 
-    // Persist to local storage for offline resiliency
-    save('ha-pulse-response', feedbackPayload)
-    setSubmitting(false)
-    setSent(true)
+      // Persist to local storage for offline resiliency
+      save('ha-pulse-response', feedbackPayload)
+      setSubmitting(false)
+      setSent(true)
+    } catch (err: unknown) {
+      console.error('Real-time Firestore feedback submission failed:', err)
+      const e = err as { code?: string; message?: string }
+      setError(
+        lang === 'ne'
+          ? `प्रतिक्रिया पठाउन सकिएन (${e.code || e.message || 'त्रुटि'})। कृपया फेरि प्रयास गर्नुहोस्।`
+          : `Failed to submit feedback (${e.code || e.message || 'error'}). Please try again.`
+      )
+      setSubmitting(false)
+    }
   }
 
   return (

@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   updateDoc,
 } from 'firebase/firestore'
@@ -48,6 +49,26 @@ export function FeedbackPage() {
   const [deleteTarget, setDeleteTarget] = useState<(FeedbackItem & { id: string }) | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true)
+    try {
+      const snap = await getDocs(collection(db, 'feedback'))
+      const loaded: (FeedbackItem & { id: string })[] = []
+      snap.forEach((d) => {
+        loaded.push({ id: d.id, ...(d.data() as FeedbackItem) })
+      })
+      setItems(loaded)
+      setLastSync(new Date())
+      showToast('Feedback store refreshed successfully.')
+    } catch (err: unknown) {
+      const e = err as { message?: string }
+      showToast(e.message || 'Failed to refresh feedback.', 'error')
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   // Real-time Firestore subscription
   useEffect(() => {
@@ -313,6 +334,15 @@ export function FeedbackPage() {
               Last synced: {lastSync.toLocaleTimeString()}
             </span>
           )}
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-xs font-bold text-ink shadow-soft transition hover:bg-subtle disabled:opacity-50"
+          >
+            <RefreshIcon size={14} className={refreshing ? 'animate-spin text-accent-500' : ''} />
+            Refresh
+          </button>
           <button
             type="button"
             onClick={handleExportCsv}
