@@ -154,6 +154,37 @@ service cloud.firestore {
       allow delete: if isSuper() || (signedIn() && myEmail() == email);
     }
 
+    // ---------- learner feedback & suggestions ----------
+    match /feedback/{id} {
+      allow create: if id.size() <= 128
+        && request.resource.data.keys().hasAll(['suggestions', 'createdAt'])
+        && request.resource.data.keys().hasOnly([
+          'fullName',
+          'email',
+          'phone',
+          'province',
+          'district',
+          'municipality',
+          'role',
+          'otherRoleText',
+          'gender',
+          'suggestions',
+          'status',
+          'createdAt'
+        ])
+        && request.resource.data.suggestions is string
+        && request.resource.data.suggestions.size() > 0
+        && request.resource.data.suggestions.size() <= 4000
+        && request.resource.data.createdAt is string
+        && (!('status' in request.resource.data) || request.resource.data.status in ['new', 'reviewed', 'archived']);
+
+      allow read: if isStaff();
+      allow update: if isEditor()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedAt', 'reviewedBy'])
+        && request.resource.data.status in ['new', 'reviewed', 'archived'];
+      allow delete: if isSuper();
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

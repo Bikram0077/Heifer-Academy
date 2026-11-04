@@ -109,3 +109,4 @@ export function CourseCard({ course, className = '' }: CourseCardProps) {
     </a>
   )
 }
+

@@ -14,6 +14,7 @@ import { PagesEditorPage } from './pages/PagesEditorPage'
 import { UIStringsPage } from './pages/UIStringsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { UsersPage } from './pages/UsersPage'
+import { FeedbackPage } from './pages/FeedbackPage'
 import { RefreshIcon } from './components/icons'
 import heiferLogoLight from '@siteAssets/heifer-academy-logo-light.png'
 
@@ -63,6 +64,7 @@ function AdminApp() {
       {currentTab === 'header-footer' && <HeaderFooterPage />}
       {currentTab === 'pages' && <PagesEditorPage />}
       {currentTab === 'strings' && <UIStringsPage />}
+      {currentTab === 'feedback' && <FeedbackPage />}
       {currentTab === 'settings' && <SettingsPage />}
       {currentTab === 'users' && <UsersPage />}
     </AdminLayout>

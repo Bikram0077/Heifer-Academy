@@ -27,3 +27,4 @@ export function Badge({ variant = 'default', icon, className = '', children, ...
     </span>
   )
 }
+

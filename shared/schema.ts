@@ -353,6 +353,26 @@ export type ContentType =
   | 'strings'
   | 'settings'
 
+export type FeedbackStatus = 'new' | 'reviewed' | 'archived'
+
+export interface FeedbackItem {
+  id?: string
+  fullName?: string
+  email?: string
+  phone?: string
+  province?: string
+  district?: string
+  municipality?: string
+  role?: string
+  otherRoleText?: string
+  gender?: string
+  suggestions: string
+  status?: FeedbackStatus
+  createdAt: string
+  reviewedAt?: string
+  reviewedBy?: string
+}
+
 export type ContentDoc<T = any> = {
   type: ContentType
   order: number

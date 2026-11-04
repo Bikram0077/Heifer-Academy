@@ -4,6 +4,7 @@ import type { AdminTab } from '../components/AdminLayout'
 import { StatusBadge, ToastBanner, useToast } from '../components/CmsUi'
 import {
   CategoriesIcon,
+  ChatIcon,
   CoursesIcon,
   EditIcon,
   FolderIcon,
@@ -380,6 +381,12 @@ export function DashboardPage({
               icon: <LanguagesIcon size={20} />,
               title: 'Bilingual UI Translations',
               desc: 'Customize 90+ interface labels, buttons, player controls, resource filters & accessibility text in English and Nepali.',
+            },
+            {
+              tab: 'feedback' as AdminTab,
+              icon: <ChatIcon size={20} />,
+              title: 'Learner Feedback & Suggestions',
+              desc: 'Live real-time store of feedback, questions, and course suggestions submitted by learners across Nepal.',
             },
             {
               tab: 'settings' as AdminTab,

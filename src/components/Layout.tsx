@@ -598,7 +598,7 @@ export function Overlay({ open, onClose, label, variant, children }: { open: boo
   if (!open) return null
   const panel = {
     sheet: 'inset-x-0 bottom-0 max-h-[88vh] rounded-t-xl animate-sheet will-change-transform',
-    center: 'inset-x-0 bottom-0 max-h-[92vh] rounded-t-xl animate-sheet will-change-transform md:inset-auto md:top-1/2 md:left-1/2 md:w-[460px] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:animate-fade',
+    center: 'inset-x-0 bottom-0 max-h-[92vh] rounded-t-xl animate-sheet will-change-transform md:inset-auto md:top-1/2 md:left-1/2 md:w-[560px] md:max-w-[calc(100vw-2rem)] md:max-h-[90vh] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:animate-fade',
     side: 'inset-x-0 bottom-0 max-h-[85vh] rounded-t-xl animate-sheet will-change-transform md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-[420px] md:rounded-none md:animate-fade',
   }[variant]
   return (

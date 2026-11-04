@@ -5,6 +5,7 @@ export const roles: { id: string; label: Bi }[] = [
   { id: 'shg', label: { en: 'SHG Member', ne: 'स्वावलम्बन समूह सदस्य' } },
   { id: 'facilitator', label: { en: 'Facilitator', ne: 'सहजकर्ता' } },
   { id: 'student', label: { en: 'Student', ne: 'विद्यार्थी' } },
+  { id: 'other', label: { en: 'Other', ne: 'अन्य' } },
 ]
 
 export const genders: { id: string; label: Bi }[] = [

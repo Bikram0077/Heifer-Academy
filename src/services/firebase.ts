@@ -24,3 +24,4 @@ export function getFirebaseDb(): Firestore | null {
     return null
   }
 }
+

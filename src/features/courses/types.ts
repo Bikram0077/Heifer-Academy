@@ -5,3 +5,4 @@ export type {
   CourseMaterial,
   CategoryId,
 } from '@shared/schema'
+

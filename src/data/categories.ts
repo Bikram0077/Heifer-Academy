@@ -8,3 +8,4 @@ export const categories: { id: CategoryId; label: Bi }[] = [
   { id: 'climate', label: { en: 'Climate Resilience', ne: 'जलवायु उत्थानशीलता' } },
   { id: 'cooperatives', label: { en: 'Cooperatives', ne: 'सहकारी' } },
 ]
+

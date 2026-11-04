@@ -5,6 +5,7 @@ import { useCms } from '../context/CmsContext'
 import heiferLogoDark from '@siteAssets/heifer-academy-logo-dark.png'
 import {
   CategoriesIcon,
+  ChatIcon,
   CoursesIcon,
   DashboardIcon,
   ExternalIcon,
@@ -32,6 +33,7 @@ export type AdminTab =
   | 'header-footer'
   | 'pages'
   | 'strings'
+  | 'feedback'
   | 'settings'
   | 'users'
 
@@ -70,6 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     heading: 'Administration',
     items: [
+      { id: 'feedback', label: 'Learner Feedback & Suggestions', icon: <ChatIcon size={18} /> },
       { id: 'settings', label: 'Branding & Settings', icon: <SettingsIcon size={18} /> },
       { id: 'users', label: 'Team & Permissions', icon: <UsersIcon size={18} />, superOnly: true },
     ],
@@ -86,6 +89,7 @@ const TAB_TITLES: Record<AdminTab, { group: string; title: string }> = {
   'header-footer': { group: 'Website Content', title: 'Header & Footer Navigation' },
   pages: { group: 'Website Content', title: 'Custom, About & Legal Pages' },
   strings: { group: 'Website Content', title: 'Bilingual UI Translations' },
+  feedback: { group: 'Administration', title: 'Learner Feedback & Community Suggestions' },
   settings: { group: 'Administration', title: 'Branding, Banner & Survey Settings' },
   users: { group: 'Administration', title: 'Staff Accounts & Invitations' },
 }
