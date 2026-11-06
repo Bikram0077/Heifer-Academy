@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { sanitizeImageSrc } from '@shared/url'
 import { useAuth } from '../context/AuthContext'
 import { useCms } from '../context/CmsContext'
+import { useInactivityAutoLogout } from '../hooks/useInactivityAutoLogout'
 import heiferLogoDark from '@siteAssets/heifer-academy-logo-dark.png'
 import {
   CategoriesIcon,
@@ -109,6 +110,17 @@ export function AdminLayout({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [publishNotice, setPublishNotice] = useState<string | null>(null)
 
+  // Automatically log out user after 15 minutes of inactivity (mousedown, keydown, scroll)
+  useInactivityAutoLogout({
+    enabled: Boolean(profile),
+    onTimeout: () => {
+      try {
+        window.sessionStorage.setItem('ha_cms_inactivity_logout', '1')
+      } catch {}
+      logout('/admin/login')
+    },
+  })
+
   const isStandaloneAdmin =
     typeof window !== 'undefined' && window.location.port === '5174'
   const publicSiteHref = isStandaloneAdmin ? 'http://localhost:8443/#/' : '#/'
@@ -129,7 +141,6 @@ export function AdminLayout({
 
   const sidebarContent = (
     <div className="relative flex h-full flex-col bg-primary-950 text-white">
-      <div aria-hidden className="contours pointer-events-none absolute inset-0" />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(24rem_16rem_at_0%_0%,rgb(63_192_200/0.16),transparent_70%)]"
@@ -254,7 +265,7 @@ export function AdminLayout({
           </div>
           <button
             type="button"
-            onClick={logout}
+            onClick={() => void logout()}
             title="Sign out"
             className="rounded-lg p-2 text-white/65 transition hover:bg-red-500/20 hover:text-red-300"
           >

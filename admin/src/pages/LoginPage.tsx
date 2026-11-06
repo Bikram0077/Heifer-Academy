@@ -49,6 +49,19 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [inactivityNotice, setInactivityNotice] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const notice = window.sessionStorage.getItem('ha_cms_inactivity_logout')
+      if (notice) {
+        window.sessionStorage.removeItem('ha_cms_inactivity_logout')
+        return 'Your session ended automatically after 15 minutes of inactivity for security.'
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return null
+  })
 
   useEffect(() => {
     if (isBootstrapped === false && mode === 'login') {
@@ -113,7 +126,6 @@ export function LoginPage() {
     <div className="grid min-h-screen bg-canvas font-sans lg:grid-cols-[1.05fr_1fr]">
       {/* Left Brand Editorial Panel */}
       <div className="relative hidden flex-col justify-between overflow-hidden bg-primary-950 p-12 text-white lg:flex">
-        <div aria-hidden className="contours pointer-events-none absolute inset-0" />
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(42rem_30rem_at_85%_15%,rgb(47_125_184/0.35),transparent_70%),radial-gradient(28rem_24rem_at_10%_95%,rgb(255_164_56/0.16),transparent_70%)]"
@@ -232,6 +244,13 @@ export function LoginPage() {
                       : 'This email does not have an active staff profile or pending invitation yet. Sign out or ask a Super Admin to invite your email.'}
                 </p>
 
+                {inactivityNotice && (
+                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs font-medium text-amber-900">
+                    <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-amber-700" />
+                    <span>{inactivityNotice}</span>
+                  </div>
+                )}
+
                 {error && (
                   <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-medium text-red-800">
                     <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-red-600" />
@@ -270,7 +289,7 @@ export function LoginPage() {
                 <div className="mt-5 border-t border-line pt-4">
                   <button
                     type="button"
-                    onClick={logout}
+                    onClick={() => void logout()}
                     className="inline-flex items-center gap-2 text-xs font-semibold text-ink-2 hover:text-red-700"
                   >
                     <LogOutIcon size={14} />
@@ -316,6 +335,13 @@ export function LoginPage() {
                   {mode === 'reset' &&
                     'Enter your invited email to receive a password setup / reset link in your inbox.'}
                 </p>
+
+                {inactivityNotice && (
+                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs font-medium text-amber-900">
+                    <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-amber-700" />
+                    <span>{inactivityNotice}</span>
+                  </div>
+                )}
 
                 {error && (
                   <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-medium text-red-800">

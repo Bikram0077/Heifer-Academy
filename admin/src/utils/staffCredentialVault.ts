@@ -25,7 +25,16 @@ export type EmailRelayConfig = {
 export function loadStaffCredentialVault(): Record<string, StoredStaffCredential> {
   if (typeof window === 'undefined') return {}
   try {
-    const raw = window.localStorage.getItem(VAULT_STORAGE_KEY)
+    // Strictly store credentials in sessionStorage to terminate on tab/browser close
+    let raw = window.sessionStorage.getItem(VAULT_STORAGE_KEY)
+    if (!raw) {
+      // Migrate legacy localStorage entry if present and immediately delete from localStorage
+      raw = window.localStorage.getItem(VAULT_STORAGE_KEY)
+      if (raw) {
+        window.sessionStorage.setItem(VAULT_STORAGE_KEY, raw)
+        window.localStorage.removeItem(VAULT_STORAGE_KEY)
+      }
+    }
     if (!raw) return {}
     const parsed = JSON.parse(raw) as Record<string, StoredStaffCredential>
     return parsed && typeof parsed === 'object' ? parsed : {}
@@ -51,7 +60,9 @@ export function saveStoredStaffCredential(entry: StoredStaffCredential): void {
       ...entry,
       email: key,
     }
-    window.localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault))
+    // Strictly use sessionStorage; ensure removal from localStorage
+    window.sessionStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault))
+    window.localStorage.removeItem(VAULT_STORAGE_KEY)
   } catch {
     // Ignore storage quota / private mode errors
   }
@@ -63,7 +74,18 @@ export function removeStoredStaffCredential(email: string): void {
   try {
     const vault = loadStaffCredentialVault()
     delete vault[key]
-    window.localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault))
+    window.sessionStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault))
+    window.localStorage.removeItem(VAULT_STORAGE_KEY)
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function clearStaffCredentialVault(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(VAULT_STORAGE_KEY)
+    window.localStorage.removeItem(VAULT_STORAGE_KEY)
   } catch {
     // Ignore storage errors
   }

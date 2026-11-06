@@ -4,6 +4,8 @@ import {
   getAuth,
   initializeAuth,
   inMemoryPersistence,
+  browserSessionPersistence,
+  setPersistence,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updatePassword,
@@ -36,6 +38,7 @@ import {
   dispatchCredentialsViaRelay,
   getStoredStaffCredential,
   saveStoredStaffCredential,
+  clearStaffCredentialVault,
 } from '../utils/staffCredentialVault'
 
 export type InviteStaffOptions = {
@@ -69,7 +72,7 @@ type AuthContextType = {
   error: string | null
   clearError: () => void
   login: (email: string, pass: string) => Promise<void>
-  logout: () => Promise<void>
+  logout: (redirectUrl?: string) => Promise<void>
   bootstrapSuperAdmin: (name: string, email: string, pass: string) => Promise<void>
   completeBootstrapForCurrentUser: (name: string) => Promise<void>
   signupWithInvite: (name: string, email: string, pass: string) => Promise<void>
@@ -295,6 +298,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null)
     setLoading(true)
     try {
+      // Ensure credentials terminate upon closing browser or tab
+      await setPersistence(auth, browserSessionPersistence)
       await signInWithEmailAndPassword(auth, email.trim(), pass)
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
@@ -314,11 +319,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = async () => {
+  const logout = async (redirectTarget?: string | unknown) => {
+    const redirectUrl =
+      typeof redirectTarget === 'string' && redirectTarget.startsWith('/')
+        ? redirectTarget
+        : '/admin/login'
     setError(null)
-    await fbSignOut(auth)
+    try {
+      await fbSignOut(auth)
+    } catch (e) {
+      console.warn('Sign out error:', e)
+    }
     setProfile(null)
     setUser(null)
+    clearStaffCredentialVault()
+    try {
+      window.sessionStorage.clear()
+    } catch {
+      // Ignore sessionStorage errors
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        window.history.pushState(null, '', redirectUrl)
+      } catch {
+        // Ignore history pushState errors
+      }
+    }
   }
 
   const commitBootstrapBatch = async (uid: string, normalizedEmail: string, displayName: string) => {
@@ -355,6 +382,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null)
     setLoading(true)
     try {
+      await setPersistence(auth, browserSessionPersistence)
       const normalizedEmail = email.trim().toLowerCase()
       let uid: string
 
@@ -411,6 +439,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null)
     setLoading(true)
     try {
+      await setPersistence(auth, browserSessionPersistence)
       const normalizedEmail = email.trim().toLowerCase()
       let uid: string
 
@@ -818,6 +847,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (options?.autoSignIn) {
+      await setPersistence(auth, browserSessionPersistence)
       await signInWithEmailAndPassword(auth, verifiedEmail, cleanPassword)
     } else {
       const cmsLoginUrl = `${getCmsLoginBaseUrl()}?email=${encodeURIComponent(verifiedEmail)}`

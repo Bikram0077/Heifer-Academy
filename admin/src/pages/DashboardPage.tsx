@@ -105,7 +105,6 @@ export function DashboardPage({
 
       {/* Welcome Editorial Hero */}
       <section className="relative overflow-hidden rounded-2xl bg-primary-950 p-7 text-white shadow-card md:p-9">
-        <div aria-hidden className="contours pointer-events-none absolute inset-0" />
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(36rem_24rem_at_95%_0%,rgb(47_125_184/0.4),transparent_70%)]"
