@@ -484,7 +484,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const generateNewMfaSecret = () => {
-    const secret = generateTotpSecret(20)
+    // 32 Base32 characters = 160 bits (20 bytes HMAC-SHA1 digest length)
+    const secret = generateTotpSecret(32)
     const emailForUri = user?.email || profile?.email || 'admin@heifer.org'
     const uri = generateTotpUri(emailForUri, secret, 'Heifer Academy CMS')
     return { secret, uri }
@@ -497,15 +498,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!/^\d{6}$/.test(cleanCode)) {
       throw new Error('Please enter a 6-digit verification code.')
     }
-    const isValid = await verifyTotpCode(cleanCode, secret)
+    const isValid = await verifyTotpCode(cleanCode, secret, { window: 2 })
     if (!isValid) {
       throw new Error('Verification code incorrect. Please verify your authenticator app time and code.')
     }
+    const enrolledAt = new Date().toISOString()
     await updateDoc(doc(db, 'users', user.uid), {
       mfaEnabled: true,
       mfaSecret: secret,
-      mfaEnrolledAt: new Date().toISOString(),
+      mfaEnrolledAt: enrolledAt,
     })
+    setProfile((prev) =>
+      prev ? { ...prev, mfaEnabled: true, mfaSecret: secret, mfaEnrolledAt: enrolledAt } : prev
+    )
     try {
       window.sessionStorage.setItem('ha_cms_mfa_verified', user.uid)
     } catch {}
@@ -527,6 +532,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mfaSecret: '',
       mfaEnrolledAt: '',
     })
+    setProfile((prev) =>
+      prev ? { ...prev, mfaEnabled: false, mfaSecret: '', mfaEnrolledAt: '' } : prev
+    )
     try {
       window.sessionStorage.removeItem('ha_cms_mfa_verified')
     } catch {}

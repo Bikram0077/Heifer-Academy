@@ -6,7 +6,7 @@ import {
   generateTotpCode,
   verifyTotpCode,
 } from '../shared/security/totp'
-import { generateQrSvg, generateQrMatrix } from '../shared/security/qr'
+import { generateQrDataUrl, generateQrSvg } from '../shared/security/qr'
 
 describe('Super Admin Password Complexity & Brute-Force Hardening', () => {
   it('rejects passwords shorter than 10 characters', () => {
@@ -61,22 +61,27 @@ describe('Multi-Factor Authentication (MFA) Verification Logic', () => {
     expect(/^\d{6}$/.test(cleanTotp('12345a'))).toBe(false) // non-numeric
   })
 
-  it('generates compliant Base32 RFC 6238 TOTP secrets', () => {
-    const secret = generateTotpSecret(20)
-    expect(secret.length).toBe(20)
+  it('generates compliant Base32 RFC 6238 TOTP secrets (32 characters / 160 bits)', () => {
+    const secret = generateTotpSecret()
+    expect(secret.length).toBe(32)
     expect(/^[A-Z2-7]+$/.test(secret)).toBe(true)
+
+    // Supports custom length when specified
+    const customSecret = generateTotpSecret(20)
+    expect(customSecret.length).toBe(20)
+    expect(/^[A-Z2-7]+$/.test(customSecret)).toBe(true)
   })
 
   it('generates standard otpauth:// URIs with proper query parameters', () => {
-    const uri = generateTotpUri('admin@heifer.org', 'JBSWY3DPEHPK3PXP', 'Heifer Academy')
+    const uri = generateTotpUri('admin@heifer.org', 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP', 'Heifer Academy')
     expect(uri).toContain('otpauth://totp/Heifer%20Academy:admin%40heifer.org?')
-    expect(uri).toContain('secret=JBSWY3DPEHPK3PXP')
+    expect(uri).toContain('secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP')
     expect(uri).toContain('digits=6')
     expect(uri).toContain('period=30')
   })
 
   it('generates and verifies dynamic 6-digit TOTP codes with skew tolerance', async () => {
-    const secret = generateTotpSecret(20)
+    const secret = generateTotpSecret(32)
     const now = Date.now()
     const code = await generateTotpCode(secret, now)
     expect(/^\d{6}$/.test(code)).toBe(true)
@@ -98,18 +103,19 @@ describe('Multi-Factor Authentication (MFA) Verification Logic', () => {
     expect(invalid).toBe(false)
   })
 
-  it('generates valid SVG QR code markup offline', () => {
-    const uri = generateTotpUri('editor@heifer.org', 'JBSWY3DPEHPK3PXP', 'Heifer Academy CMS')
-    const matrix = generateQrMatrix(uri)
-    expect(matrix.length).toBeGreaterThanOrEqual(21)
-    expect(matrix[0].length).toBe(matrix.length)
+  it('generates valid scannable PNG Data URLs and SVG QR codes', async () => {
+    const uri = generateTotpUri('editor@heifer.org', 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP', 'Heifer Academy CMS')
 
-    const svg = generateQrSvg(uri, { size: 180 })
+    // Scannable PNG Base64 Data URL for Authenticator mobile apps
+    const dataUrl = await generateQrDataUrl(uri, { width: 200 })
+    expect(dataUrl.startsWith('data:image/png;base64,')).toBe(true)
+    expect(dataUrl.length).toBeGreaterThan(100)
+
+    // SVG rendering
+    const svg = await generateQrSvg(uri, { width: 180 })
     expect(svg).toContain('<svg')
     expect(svg).toContain('viewBox=')
-    expect(svg).toContain('width="180"')
-    expect(svg).toContain('height="180"')
-    expect(svg).toContain('<path d="')
+    expect(svg).toContain('</svg>')
   })
 })
 

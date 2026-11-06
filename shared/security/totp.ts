@@ -9,8 +9,10 @@ const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 
 /**
  * Generates a cryptographically secure Base32 secret key.
+ * Default is 32 Base32 characters (160 bits / 20 bytes), which aligns with RFC 6238
+ * recommendation and guarantees zero leftover bit ambiguity in mobile authenticator apps.
  */
-export function generateTotpSecret(length = 20): string {
+export function generateTotpSecret(length = 32): string {
   const bytes = new Uint8Array(length)
   crypto.getRandomValues(bytes)
   let secret = ''
@@ -84,10 +86,10 @@ export async function generateTotpCode(secret: string, timestampMs = Date.now())
   // Dynamic truncation (RFC 4226 / 6238)
   const offset = hmac[hmac.length - 1] & 0x0f
   const codeInt =
-    ((hmac[offset] & 0x7f) << 24) |
-    ((hmac[offset + 1] & 0xff) << 16) |
-    ((hmac[offset + 2] & 0xff) << 8) |
-    (hmac[offset + 3] & 0xff)
+    (((hmac[offset] & 0x7f) << 24) |
+      ((hmac[offset + 1] & 0xff) << 16) |
+      ((hmac[offset + 2] & 0xff) << 8) |
+      (hmac[offset + 3] & 0xff)) >>> 0
 
   const code = (codeInt % 1000000).toString().padStart(6, '0')
   return code
@@ -119,3 +121,4 @@ export async function verifyTotpCode(
 
   return false
 }
+

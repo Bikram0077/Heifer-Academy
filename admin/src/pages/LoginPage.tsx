@@ -7,12 +7,12 @@ import {
   AlertCircleIcon,
   CheckCircleIcon,
   ExternalIcon,
-  LanguagesIcon,
+  EyeIcon,
+  EyeOffIcon,
   LockIcon,
   LogOutIcon,
   RefreshIcon,
   ShieldCheckIcon,
-  SproutIcon,
 } from '../components/icons'
 
 type Mode = 'login' | 'bootstrap' | 'invite' | 'reset'
@@ -23,7 +23,6 @@ export function LoginPage() {
     profile,
     isBootstrapped,
     hasPendingInvite,
-    pendingInviteRole,
     login,
     logout,
     bootstrapSuperAdmin,
@@ -52,6 +51,7 @@ export function LoginPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState(queryEmail)
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [mfaCode, setMfaCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
@@ -62,7 +62,7 @@ export function LoginPage() {
       const notice = window.sessionStorage.getItem('ha_cms_inactivity_logout')
       if (notice) {
         window.sessionStorage.removeItem('ha_cms_inactivity_logout')
-        return 'Your session ended automatically after 15 minutes of inactivity for security.'
+        return 'Your session ended automatically after 15 minutes of inactivity.'
       }
     } catch {
       // Ignore storage errors
@@ -105,9 +105,7 @@ export function LoginPage() {
         await signupWithInvite(name, email, password)
       } else if (mode === 'reset') {
         await resetPassword(email)
-        setSuccessMsg(
-          'Password setup / reset email sent! Check your Gmail, Outlook, or organization inbox (and Spam/Promotions folder).'
-        )
+        setSuccessMsg('Password reset instructions sent. Please check your inbox.')
       }
     } catch {
       if (mode === 'login') {
@@ -149,30 +147,33 @@ export function LoginPage() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Two-Factor Authentication Verification View
+  // ---------------------------------------------------------------------------
   if (mfaChallengeRequired || (profile?.mfaEnabled && !isMfaVerified)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas p-6 font-sans">
-        <div className="w-full max-w-md rounded-2xl border border-line bg-card p-8 shadow-card">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-primary-900">
+        <div className="w-full max-w-sm rounded-2xl border border-line bg-card p-8 shadow-card">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-900">
             <ShieldCheckIcon size={24} />
           </div>
-          <h2 className="mt-4 text-center text-xl font-bold text-ink">Two-Factor Authentication</h2>
-          <p className="mt-2 text-center text-xs text-ink-2">
-            This administrative account has Multi-Factor Authentication enabled. Enter the 6-digit verification code from your Google Authenticator or mobile app.
+
+          <h2 className="mt-4 text-center text-xl font-bold tracking-tight text-ink">
+            Two-Factor Verification
+          </h2>
+          <p className="mt-1.5 text-center text-xs text-ink-2">
+            Enter the 6-digit code from your authenticator app to proceed.
           </p>
 
           {error && (
             <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800">
-              <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-red-600" />
+              <AlertCircleIcon size={15} className="mt-0.5 shrink-0 text-red-600" />
               <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleMfaSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-ink">
-                6-Digit Verification Code
-              </label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -182,24 +183,30 @@ export function LoginPage() {
                 required
                 value={mfaCode}
                 onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                placeholder="123456"
-                className="mt-1.5 w-full text-center text-2xl font-mono tracking-[0.3em] rounded-xl border border-line-strong bg-canvas px-4 py-3 text-ink focus:border-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100"
+                placeholder="000000"
+                className="w-full text-center font-mono text-2xl font-bold tracking-[0.35em] rounded-xl border border-line-strong bg-canvas px-4 py-3 text-ink placeholder:text-ink-3 transition focus:border-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100"
               />
             </div>
+
             <button
               type="submit"
               disabled={submitting || mfaCode.length !== 6}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary-900 font-bold text-white shadow-soft transition hover:bg-primary-700 disabled:opacity-50"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary-900 font-semibold text-sm text-white shadow-soft transition hover:bg-primary-700 active:scale-[0.99] disabled:opacity-50"
             >
-              {submitting ? <RefreshIcon size={16} className="animate-spin" /> : <ShieldCheckIcon size={16} />}
-              <span>Verify & Continue</span>
+              {submitting ? (
+                <RefreshIcon size={16} className="animate-spin" />
+              ) : (
+                <ShieldCheckIcon size={16} />
+              )}
+              <span>Verify code</span>
             </button>
+
             <button
               type="button"
               onClick={cancelMfaChallenge}
-              className="w-full text-center text-xs font-semibold text-ink-2 hover:text-ink"
+              className="w-full text-center text-xs font-semibold text-ink-3 hover:text-ink transition"
             >
-              &larr; Cancel and Return to Sign In
+              Cancel and return to sign in
             </button>
           </form>
         </div>
@@ -208,256 +215,171 @@ export function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-screen bg-canvas font-sans lg:grid-cols-[1.05fr_1fr]">
-      {/* Left Brand Editorial Panel */}
+    <div className="grid min-h-screen bg-canvas font-sans lg:grid-cols-[1fr_1fr]">
+      {/* Left Editorial Brand Panel */}
       <div className="relative hidden flex-col justify-between overflow-hidden bg-primary-950 p-12 text-white lg:flex">
+        {/* Clean, smooth ambient lighting without dot grids */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(42rem_30rem_at_85%_15%,rgb(47_125_184/0.35),transparent_70%),radial-gradient(28rem_24rem_at_10%_95%,rgb(255_164_56/0.16),transparent_70%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(40rem_32rem_at_85%_15%,rgb(47_125_184/0.28),transparent_70%),radial-gradient(32rem_26rem_at_15%_95%,rgb(255_164_56/0.14),transparent_70%)]"
         />
 
+        {/* Top Header */}
         <div className="relative flex items-center justify-between">
-          <div className="flex flex-col items-start gap-1.5">
-            <img
-              src={heiferLogoDark}
-              alt="Heifer Academy"
-              className="h-9 w-auto"
-            />
-            <p className="text-[0.68rem] font-bold tracking-[0.14em] text-accent-500 uppercase">
-              Editorial &amp; Content Studio
-            </p>
-          </div>
+          <img
+            src={heiferLogoDark}
+            alt="Heifer Academy"
+            className="h-8 w-auto"
+          />
 
           <a
             href={publicSiteHref}
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/[0.06] px-4 py-2 text-xs font-semibold text-white/90 transition hover:bg-white/12 hover:text-white"
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-semibold text-white/80 transition hover:border-white/30 hover:bg-white/10 hover:text-white"
           >
-            Public Website <ExternalIcon size={13} />
+            <span>Public Site</span>
+            <ExternalIcon size={12} />
           </a>
         </div>
 
-        <div className="relative my-auto max-w-lg py-12">
-          <p className="text-xs font-bold tracking-[0.14em] text-accent-500 uppercase">
-            Heifer International Nepal
-          </p>
-          <h1 className="mt-3 text-4xl leading-[1.15] font-extrabold tracking-[-0.02em] text-white">
-            Manage every course, story, navigation menu, and field guide in real time.
+        {/* Middle Editorial Showcase */}
+        <div className="relative my-auto max-w-md py-12">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold tracking-wider text-accent-500 uppercase">
+            Editorial Studio
+          </span>
+
+          <h1 className="mt-4 text-3xl xl:text-4xl font-extrabold tracking-tight text-white leading-[1.2]">
+            Publishing knowledge for resilient communities.
           </h1>
-          <p className="mt-4 text-base leading-relaxed text-white/78">
-            Draft curriculum updates, publish bilingual handouts, customize header and footer
-            menus, and invite team members using any Gmail or organization email.
+
+          <p className="mt-3.5 text-sm leading-relaxed text-white/70">
+            Centralized content management for agricultural curriculum, farmer field guides, and bilingual multimedia courses.
           </p>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/12 bg-white/[0.05] p-3.5">
-              <span className="inline-flex size-8 items-center justify-center rounded-lg bg-accent-500/20 text-accent-500">
-                <LanguagesIcon size={16} />
-              </span>
-              <p className="mt-2.5 text-xs font-bold text-white">Side-by-Side Bilingual</p>
-              <p className="mt-1 text-[0.7rem] leading-relaxed text-white/70">
-                Edit English and नेपाली copy together for courses, guides, and labels.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-white/[0.05] p-3.5">
-              <span className="inline-flex size-8 items-center justify-center rounded-lg bg-teal-500/20 text-teal-400">
-                <SproutIcon size={16} />
-              </span>
-              <p className="mt-2.5 text-xs font-bold text-white">Safe Draft &amp; Live</p>
-              <p className="mt-1 text-[0.7rem] leading-relaxed text-white/70">
-                Save drafts privately and publish to Firestore in one click.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-white/[0.05] p-3.5">
-              <span className="inline-flex size-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
-                <ShieldCheckIcon size={16} />
-              </span>
-              <p className="mt-2.5 text-xs font-bold text-white">Two-Factor Auth (2FA)</p>
-              <p className="mt-1 text-[0.7rem] leading-relaxed text-white/70">
-                TOTP authenticator security for Super Admin &amp; Editor roles.
-              </p>
-            </div>
+          <div className="mt-8 flex items-center gap-2.5 text-xs text-white/60">
+            <span className="flex size-2 rounded-full bg-emerald-400" />
+            <span>Two-factor authentication &amp; enterprise session security active</span>
           </div>
         </div>
 
-        <div className="relative flex items-center justify-between border-t border-white/10 pt-6 text-xs text-white/60">
-          <span>Project: heifer-academy-cms</span>
-          <span>Works with any invited email</span>
+        {/* Bottom Metadata */}
+        <div className="relative flex items-center justify-between border-t border-white/10 pt-5 text-xs text-white/40">
+          <span>Heifer International Nepal</span>
+          <span>CMS Portal</span>
         </div>
       </div>
 
-      {/* Right Authentication Workspace */}
-      <div className="flex flex-col justify-center px-5 py-10 sm:px-10 lg:px-14">
-        <div className="mx-auto w-full max-w-md">
-          {/* Mobile Header */}
+      {/* Right Authentication Form */}
+      <div className="flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16">
+        <div className="mx-auto w-full max-w-[400px]">
+          {/* Mobile Top Brand */}
           <div className="mb-8 flex items-center justify-between lg:hidden">
-            <div className="flex flex-col items-start gap-1">
-              <img
-                src={heiferLogoLight}
-                alt="Heifer Academy"
-                className="h-8 w-auto"
-              />
-              <p className="text-[0.65rem] font-bold tracking-widest text-ochre uppercase">
-                Editorial Portal
-              </p>
-            </div>
+            <img
+              src={heiferLogoLight}
+              alt="Heifer Academy"
+              className="h-8 w-auto"
+            />
             <a
               href={publicSiteHref}
-              className="inline-flex items-center gap-1 rounded-full border border-line-strong bg-card px-3 py-1.5 text-xs font-semibold text-brand"
+              className="inline-flex items-center gap-1 rounded-full border border-line-strong bg-card px-3 py-1.5 text-xs font-semibold text-brand transition hover:border-brand"
             >
-              Website <ExternalIcon size={12} />
+              <span>Website</span>
+              <ExternalIcon size={12} />
             </a>
           </div>
 
-          <div className="rounded-2xl border border-line bg-card p-7 shadow-card sm:p-8">
-            {/* Case 1: User is signed into Firebase Auth, but users/{uid} profile doc does not exist yet */}
+          <div className="rounded-2xl border border-line bg-card p-8 shadow-card sm:p-9">
+            {/* Case 1: Authenticated but awaiting profile setup */}
             {user && !profile ? (
               <div>
-                <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold text-brand">
-                  <ShieldCheckIcon size={15} />
-                  {isBootstrapped === false
-                    ? 'Complete Initial Super Admin Setup'
-                    : hasPendingInvite
-                      ? `Claim ${pendingInviteRole?.replace('_', ' ')} Invitation`
-                      : 'Staff Profile Required'}
-                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold text-brand">
+                  <ShieldCheckIcon size={14} />
+                  Account Activation
+                </span>
 
-                <h2 className="text-2xl font-bold tracking-[-0.02em] text-ink">
-                  {isBootstrapped === false
-                    ? 'Finish Initializing CMS'
-                    : hasPendingInvite
-                      ? 'Activate Your Staff Account'
-                      : 'No Staff Access Found'}
+                <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink">
+                  Set up your profile
                 </h2>
-                <p className="mt-2 text-sm leading-relaxed text-ink-2">
-                  Signed in as <strong className="font-semibold text-ink">{user.email}</strong>.{' '}
-                  {isBootstrapped === false
-                    ? 'Confirm your display name below to create the initial Super Admin profile and unlock full website editing.'
-                    : hasPendingInvite
-                      ? 'Confirm your display name below to activate your staff invitation.'
-                      : 'This email does not have an active staff profile or pending invitation yet. Sign out or ask a Super Admin to invite your email.'}
+                <p className="mt-1 text-xs text-ink-2">
+                  Signed in as <strong className="font-semibold text-ink">{user.email}</strong>.
                 </p>
 
-                {inactivityNotice && (
-                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs font-medium text-amber-900">
-                    <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-amber-700" />
-                    <span>{inactivityNotice}</span>
-                  </div>
-                )}
-
                 {error && (
-                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-medium text-red-800">
-                    <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-red-600" />
+                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+                    <AlertCircleIcon size={15} className="mt-0.5 shrink-0 text-red-600" />
                     <span>{error}</span>
                   </div>
                 )}
 
                 {(isBootstrapped === false || hasPendingInvite) ? (
-                  <form onSubmit={handleCompleteCurrentSession} className="mt-6 space-y-4">
+                  <form onSubmit={handleCompleteCurrentSession} className="mt-5 space-y-4">
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold tracking-wide text-ink uppercase">
-                        Your Display Name
+                      <label className="mb-1.5 block text-xs font-semibold text-ink-2">
+                        Display Name
                       </label>
                       <input
                         type="text"
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Heifer Nepal Editorial Lead"
-                        className="w-full rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-primary-700 focus:ring-4 focus:ring-primary-100 focus:outline-none"
+                        placeholder="e.g. Maya Shrestha"
+                        className="w-full rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-3 transition focus:border-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary-900 px-5 text-sm font-bold text-white shadow-soft transition hover:bg-primary-700 disabled:opacity-50"
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary-900 font-semibold text-sm text-white shadow-soft transition hover:bg-primary-700 active:scale-[0.99] disabled:opacity-50"
                     >
                       {submitting && <RefreshIcon size={16} className="animate-spin" />}
-                      {isBootstrapped === false
-                        ? 'Activate Super Admin & Enter CMS'
-                        : 'Activate Invitation & Enter CMS'}
+                      <span>Complete profile setup</span>
                     </button>
                   </form>
                 ) : null}
 
-                <div className="mt-5 border-t border-line pt-4">
+                <div className="mt-6 border-t border-line pt-4">
                   <button
                     type="button"
                     onClick={() => void logout()}
-                    className="inline-flex items-center gap-2 text-xs font-semibold text-ink-2 hover:text-red-700"
+                    className="inline-flex items-center gap-2 text-xs font-semibold text-ink-3 hover:text-red-700 transition"
                   >
                     <LogOutIcon size={14} />
-                    Sign out of {user.email}
+                    Sign out
                   </button>
                 </div>
               </div>
             ) : (
               /* Case 2: Standard Sign In / Bootstrap / Invite / Reset */
               <div>
-                {isBootstrapped === false && (
-                  <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-accent-100 p-3.5 text-xs text-ochre">
-                    <ShieldCheckIcon size={17} className="mt-0.5 shrink-0 text-accent-500" />
-                    <div>
-                      <p className="font-bold">First-Time CMS Setup</p>
-                      <p className="mt-0.5 leading-relaxed">
-                        Create your initial Super Admin account below (any email address works,
-                        including Gmail or organization email).
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <p className="text-xs font-bold tracking-[0.14em] text-ochre uppercase">
-                  {mode === 'login' && 'Staff Authentication'}
-                  {mode === 'bootstrap' && 'Initial Super Admin'}
-                  {mode === 'invite' && 'Staff Invitation'}
-                  {mode === 'reset' && 'Set or Reset Password'}
-                </p>
-                <h2 className="mt-1 text-2xl font-bold tracking-[-0.02em] text-ink">
-                  {mode === 'login' && 'Sign in to Heifer Academy'}
-                  {mode === 'bootstrap' && 'Create Super Admin Account'}
-                  {mode === 'invite' && 'Claim Your Staff Invite'}
-                  {mode === 'reset' && 'Set / Reset Your Password'}
+                <h2 className="text-2xl font-bold tracking-tight text-ink">
+                  {mode === 'login' && 'Sign in'}
+                  {mode === 'bootstrap' && 'Initial setup'}
+                  {mode === 'invite' && 'Claim invitation'}
+                  {mode === 'reset' && 'Reset password'}
                 </h2>
-                <p className="mt-1.5 text-sm text-ink-2">
-                  {mode === 'login' &&
-                    'Sign in with any invited email (Gmail, Outlook, Yahoo, or organization email) after setting your password from the email link.'}
-                  {mode === 'bootstrap' &&
-                    'This first administrator account receives full permissions across the CMS.'}
-                  {mode === 'invite' &&
-                    'Enter the email address invited by your Super Admin to set a password and join.'}
-                  {mode === 'reset' &&
-                    'Enter your invited email to receive a password setup / reset link in your inbox.'}
+                <p className="mt-1 text-xs text-ink-2">
+                  {mode === 'login' && 'Enter your credentials to access the CMS.'}
+                  {mode === 'bootstrap' && 'Create the primary Super Admin account.'}
+                  {mode === 'invite' && 'Enter your details to activate your invited account.'}
+                  {mode === 'reset' && 'Enter your email to receive a password reset link.'}
                 </p>
-
-                {mode === 'login' && (
-                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-950">
-                    <ShieldCheckIcon size={16} className="mt-0.5 shrink-0 text-emerald-600" />
-                    <div>
-                      <span className="font-bold">Two-Factor Authentication (2FA) Supported: </span>
-                      <span className="text-emerald-800">
-                        Super Admin &amp; Editor accounts with 2FA enabled will be prompted for an Authenticator code after password check.
-                      </span>
-                    </div>
-                  </div>
-                )}
 
                 {inactivityNotice && (
-                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs font-medium text-amber-900">
-                    <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-amber-700" />
+                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                    <AlertCircleIcon size={15} className="mt-0.5 shrink-0 text-amber-700" />
                     <span>{inactivityNotice}</span>
                   </div>
                 )}
 
                 {error && (
-                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-medium text-red-800">
-                    <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-red-600" />
+                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+                    <AlertCircleIcon size={15} className="mt-0.5 shrink-0 text-red-600" />
                     <span>{error}</span>
                   </div>
                 )}
 
                 {successMsg && (
-                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs font-medium text-emerald-800">
-                    <CheckCircleIcon size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+                    <CheckCircleIcon size={15} className="mt-0.5 shrink-0 text-emerald-600" />
                     <span>{successMsg}</span>
                   </div>
                 )}
@@ -465,7 +387,7 @@ export function LoginPage() {
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                   {(mode === 'bootstrap' || mode === 'invite') && (
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold tracking-wide text-ink uppercase">
+                      <label className="mb-1.5 block text-xs font-semibold text-ink-2">
                         Full Name
                       </label>
                       <input
@@ -474,64 +396,70 @@ export function LoginPage() {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. Sita Sharma"
-                        className="w-full rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-primary-700 focus:ring-4 focus:ring-primary-100 focus:outline-none"
+                        className="w-full rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-3 transition focus:border-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100"
                       />
                     </div>
                   )}
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold tracking-wide text-ink uppercase">
-                      Email Address
+                    <label className="mb-1.5 block text-xs font-semibold text-ink-2">
+                      Email
                     </label>
                     <input
                       type="email"
                       required
+                      autoComplete="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@gmail.com or name@organization.org"
-                      className="w-full rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-primary-700 focus:ring-4 focus:ring-primary-100 focus:outline-none"
+                      placeholder="name@example.com"
+                      className="w-full rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-3 transition focus:border-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100"
                     />
                   </div>
 
                   {mode !== 'reset' && (
                     <div>
                       <div className="mb-1.5 flex items-center justify-between">
-                        <label className="text-xs font-bold tracking-wide text-ink uppercase">
+                        <label className="text-xs font-semibold text-ink-2">
                           Password
                         </label>
                         {mode === 'login' && (
                           <button
                             type="button"
                             onClick={() => switchMode('reset')}
-                            className="text-xs font-semibold text-brand hover:underline"
+                            className="text-xs font-semibold text-primary-700 hover:text-primary-900 transition"
                           >
-                            Set / Forgot password?
+                            Forgot password?
                           </button>
                         )}
                       </div>
-                      <input
-                        type="password"
-                        required
-                        minLength={6}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Minimum 6 characters"
-                        className="w-full rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-primary-700 focus:ring-4 focus:ring-primary-100 focus:outline-none"
-                      />
-                      {mode === 'login' && (
-                        <div className="mt-1.5 flex items-center gap-1.5 text-[0.7rem] font-medium text-ink-3">
-                          <ShieldCheckIcon size={13} className="shrink-0 text-emerald-600" />
-                          <span>Supports Google Authenticator, Microsoft Authenticator &amp; TOTP</span>
-                        </div>
-                      )}
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          minLength={6}
+                          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full rounded-xl border border-line-strong bg-card py-2.5 pr-10 pl-3.5 text-sm text-ink placeholder:text-ink-3 transition focus:border-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 flex items-center pr-3 text-ink-3 hover:text-ink transition focus:outline-none"
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                        </button>
+                      </div>
                     </div>
                   )}
 
                   {mode === 'login' && isLocked && (
-                    <div className="flex items-start gap-2.5 rounded-xl border border-red-300 bg-red-50 p-3.5 text-xs font-medium text-red-900">
-                      <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-red-700" />
+                    <div className="flex items-start gap-2.5 rounded-xl border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+                      <AlertCircleIcon size={15} className="mt-0.5 shrink-0 text-red-700" />
                       <span>
-                        Too many failed login attempts. Please wait {remainingSeconds}s before trying again.
+                        Too many attempts. Please wait {remainingSeconds}s before retrying.
                       </span>
                     </div>
                   )}
@@ -539,7 +467,7 @@ export function LoginPage() {
                   <button
                     type="submit"
                     disabled={submitting || (mode === 'login' && isLocked)}
-                    className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary-900 px-5 text-sm font-bold text-white shadow-soft transition hover:bg-primary-700 disabled:opacity-50"
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary-900 font-semibold text-sm text-white shadow-soft transition hover:bg-primary-700 active:scale-[0.99] disabled:opacity-50"
                   >
                     {submitting ? (
                       <RefreshIcon size={16} className="animate-spin" />
@@ -547,30 +475,30 @@ export function LoginPage() {
                       <LockIcon size={15} />
                     )}
                     <span>
-                      {mode === 'login' && (isLocked ? `Locked (${remainingSeconds}s)` : 'Sign In to CMS')}
+                      {mode === 'login' && (isLocked ? `Locked (${remainingSeconds}s)` : 'Sign in')}
                       {mode === 'bootstrap' && 'Initialize Super Admin'}
-                      {mode === 'invite' && 'Complete Staff Registration'}
-                      {mode === 'reset' && 'Email Password Setup Link'}
+                      {mode === 'invite' && 'Activate account'}
+                      {mode === 'reset' && 'Send reset link'}
                     </span>
                   </button>
                 </form>
 
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-5 text-xs">
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4 text-xs">
                   {mode !== 'login' ? (
                     <button
                       type="button"
                       onClick={() => switchMode('login')}
-                      className="font-semibold text-brand hover:underline"
+                      className="font-semibold text-primary-700 hover:text-primary-900 transition"
                     >
-                      &larr; Back to Staff Sign In
+                      &larr; Back to sign in
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => switchMode('invite')}
-                      className="font-semibold text-brand hover:underline"
+                      className="font-semibold text-primary-700 hover:text-primary-900 transition"
                     >
-                      Have a manual invite code? Claim here
+                      Claim an invitation
                     </button>
                   )}
 
@@ -578,9 +506,9 @@ export function LoginPage() {
                     <button
                       type="button"
                       onClick={() => switchMode('bootstrap')}
-                      className="font-bold text-ochre hover:underline"
+                      className="font-bold text-ochre hover:underline transition"
                     >
-                      First-time Super Admin setup &rarr;
+                      First-time setup &rarr;
                     </button>
                   )}
                 </div>

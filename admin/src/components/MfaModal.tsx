@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { generateQrMatrix } from '@shared/security/qr'
+import { generateQrDataUrl } from '@shared/security/qr'
 import {
   AlertCircleIcon,
   CheckCircleIcon,
   CheckIcon,
   CopyIcon,
-  LockIcon,
   RefreshIcon,
   ShieldCheckIcon,
   XIcon,
@@ -15,41 +14,6 @@ import {
 interface MfaModalProps {
   isOpen: boolean
   onClose: () => void
-}
-
-function QrCodeSvg({ text, size = 168 }: { text: string; size?: number }) {
-  if (!text) return null
-  try {
-    const matrix = generateQrMatrix(text)
-    const moduleCount = matrix.length
-    const margin = 3
-    const totalSize = moduleCount + margin * 2
-
-    let pathData = ''
-    for (let r = 0; r < moduleCount; r++) {
-      for (let c = 0; c < moduleCount; c++) {
-        if (matrix[r][c]) {
-          pathData += `M${c + margin},${r + margin}h1v1h-1z `
-        }
-      }
-    }
-
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox={`0 0 ${totalSize} ${totalSize}`}
-        width={size}
-        height={size}
-        shapeRendering="crispEdges"
-        className="rounded-lg"
-      >
-        <rect width={totalSize} height={totalSize} fill="#ffffff" />
-        <path d={pathData.trim()} fill="#0f172a" />
-      </svg>
-    )
-  } catch {
-    return <div className="text-xs text-red-500">QR preview unavailable</div>
-  }
 }
 
 export function MfaModal({ isOpen, onClose }: MfaModalProps) {
@@ -64,6 +28,7 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
 
   // Setup state
   const [secretData, setSecretData] = useState<{ secret: string; uri: string } | null>(null)
+  const [qrDataUrl, setQrDataUrl] = useState<string>('')
   const [setupCode, setSetupCode] = useState('')
   const [copied, setCopied] = useState(false)
   const [setupLoading, setSetupLoading] = useState(false)
@@ -98,6 +63,17 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
     }
   }, [isOpen, profile?.mfaEnabled])
 
+  // Generate QR code data URL whenever secretData changes
+  useEffect(() => {
+    if (secretData?.uri) {
+      generateQrDataUrl(secretData.uri, { width: 220, margin: 2 })
+        .then((url) => setQrDataUrl(url))
+        .catch(() => setQrDataUrl(''))
+    } else {
+      setQrDataUrl('')
+    }
+  }, [secretData?.uri])
+
   if (!isOpen) return null
 
   const isMfaActive = Boolean(profile?.mfaEnabled)
@@ -128,7 +104,9 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
       }, 3000)
     } catch (err: unknown) {
       const e = err as { message?: string }
-      setSetupError(e.message || 'Failed to verify code. Please check your authenticator app and try again.')
+      setSetupError(
+        e.message || 'Failed to verify code. Please check your authenticator app time and code.'
+      )
     } finally {
       setSetupLoading(false)
     }
@@ -157,7 +135,6 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
       await disableMfaForCurrentUser(disablePassword)
       setShowDisableConfirm(false)
       setDisablePassword('')
-      // Re-generate fresh secret for if they ever re-enable
       const generated = generateNewMfaSecret()
       setSecretData(generated)
     } catch (err: unknown) {
@@ -168,7 +145,7 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
     }
   }
 
-  // Format secret with spaces: ABCD EFGH IJKL MNOP QRST
+  // Format secret into groups of 4: ABCD EFGH IJKL MNOP QRST UVWX YZ23 4567
   const formattedSecret = secretData?.secret.match(/.{1,4}/g)?.join(' ') || secretData?.secret || ''
 
   return (
@@ -184,24 +161,24 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="mfa-dialog-title"
-        className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-line bg-card p-6 shadow-modal sm:p-7"
+        className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-line bg-card p-6 shadow-modal sm:p-7"
       >
         {/* Header */}
         <div className="flex items-start justify-between border-b border-line pb-4">
           <div className="flex items-center gap-3">
             <div
-              className={`flex size-11 items-center justify-center rounded-xl ${
+              className={`flex size-10 items-center justify-center rounded-xl ${
                 isMfaActive ? 'bg-emerald-100 text-emerald-800' : 'bg-primary-100 text-primary-900'
               }`}
             >
-              <ShieldCheckIcon size={24} />
+              <ShieldCheckIcon size={22} />
             </div>
             <div>
-              <p className="text-[0.68rem] font-bold tracking-[0.14em] text-accent-500 uppercase">
-                Staff Account Security
+              <p className="text-[11px] font-bold tracking-wider text-accent-500 uppercase">
+                Staff Security
               </p>
-              <h2 id="mfa-dialog-title" className="text-lg font-bold text-ink">
-                Two-Factor Authentication (2FA)
+              <h2 id="mfa-dialog-title" className="text-base font-bold text-ink sm:text-lg">
+                Two-Factor Authentication
               </h2>
             </div>
           </div>
@@ -218,38 +195,32 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
         {/* Body */}
         <div className="mt-5 space-y-5">
           {isMfaActive ? (
-            /* ================= STATE 1: MFA IS ACTIVE ================= */
-            <div className="space-y-5">
+            /* ================= STATE 1: ACTIVE ================= */
+            <div className="space-y-4">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
                 <div className="flex items-start gap-3">
                   <CheckCircleIcon size={20} className="mt-0.5 shrink-0 text-emerald-700" />
                   <div>
-                    <h3 className="text-sm font-bold text-emerald-950">
-                      Two-Factor Authentication is Active &amp; Protecting Your Account
-                    </h3>
-                    <p className="mt-1 text-xs leading-relaxed text-emerald-900">
-                      Signed in as <strong className="font-semibold">{profile?.email || user?.email}</strong> with role{' '}
-                      <span className="font-semibold uppercase tracking-wider">
-                        {profile?.role?.replace('_', ' ')}
-                      </span>
-                      . Every time you log in to the CMS, you will be required to provide a 6-digit TOTP verification code from your mobile authenticator app.
+                    <h3 className="text-sm font-bold text-emerald-950">2FA Protection is Active</h3>
+                    <p className="mt-1 text-xs text-emerald-900 leading-relaxed">
+                      Your account (<strong className="font-semibold">{profile?.email || user?.email}</strong>) requires an authenticator verification code at each sign in.
                     </p>
                     {profile?.mfaEnrolledAt && (
-                      <p className="mt-2 text-[0.7rem] text-emerald-800/80">
-                        Enrolled on {new Date(profile.mfaEnrolledAt).toLocaleString()}
+                      <p className="mt-2 text-[11px] text-emerald-800/80">
+                        Enrolled {new Date(profile.mfaEnrolledAt).toLocaleDateString()}
                       </p>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Test Authenticator Code section */}
+              {/* Test Authenticator Sync */}
               <div className="rounded-xl border border-line bg-canvas p-4">
                 <h4 className="text-xs font-bold text-ink uppercase tracking-wider">
                   Test Authenticator Sync
                 </h4>
                 <p className="mt-1 text-xs text-ink-2">
-                  Verify that your mobile app is generating valid codes without altering your account settings.
+                  Verify current 6-digit code without changing your security settings:
                 </p>
                 <form onSubmit={handleTestCode} className="mt-3 flex flex-wrap items-center gap-2">
                   <input
@@ -259,57 +230,55 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
                     pattern="[0-9]*"
                     value={testCode}
                     onChange={(e) => setTestCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="e.g. 123456"
-                    className="h-9 w-36 text-center font-mono text-sm tracking-widest rounded-xl border border-line-strong bg-card px-3 text-ink focus:border-primary-700 focus:outline-none"
+                    placeholder="000000"
+                    className="h-9 w-32 rounded-xl border border-line-strong bg-card text-center font-mono text-sm font-bold tracking-widest text-ink focus:border-primary-700 focus:outline-none"
                   />
                   <button
                     type="submit"
                     disabled={testing || testCode.length !== 6}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary-900 px-4 text-xs font-bold text-white transition hover:bg-primary-700 disabled:opacity-50"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary-900 px-4 text-xs font-bold text-white transition hover:bg-primary-700 disabled:opacity-50"
                   >
-                    {testing ? <RefreshIcon size={14} className="animate-spin" /> : null}
+                    {testing ? <RefreshIcon size={13} className="animate-spin" /> : null}
                     <span>Test Code</span>
                   </button>
 
                   {testResult === 'success' && (
                     <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
-                      <CheckCircleIcon size={14} /> Synchronized &amp; Valid!
+                      <CheckCircleIcon size={14} /> Synchronized!
                     </span>
                   )}
                   {testResult === 'fail' && (
                     <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700">
-                      <AlertCircleIcon size={14} /> Code invalid or clock skewed.
+                      <AlertCircleIcon size={14} /> Code invalid
                     </span>
                   )}
                 </form>
               </div>
 
-              {/* Disable 2FA Section */}
-              <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-                <div className="flex items-center justify-between">
+              {/* Disable Section */}
+              <div className="rounded-xl border border-red-200 bg-red-50/40 p-4">
+                <div className="flex items-center justify-between gap-2">
                   <div>
                     <h4 className="text-xs font-bold text-red-950 uppercase tracking-wider">
-                      Disable Two-Factor Authentication
+                      Disable 2FA
                     </h4>
-                    <p className="mt-0.5 text-xs text-red-800">
-                      Reverts your login security to password-only. Not recommended.
-                    </p>
+                    <p className="text-xs text-red-800">Reverts to password-only authentication.</p>
                   </div>
                   {!showDisableConfirm && (
                     <button
                       type="button"
                       onClick={() => setShowDisableConfirm(true)}
-                      className="rounded-full border border-red-300 bg-card px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-50 hover:text-red-900"
+                      className="rounded-xl border border-red-300 bg-card px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-50"
                     >
-                      Turn Off 2FA
+                      Turn Off
                     </button>
                   )}
                 </div>
 
                 {showDisableConfirm && (
-                  <form onSubmit={handleDisableMfa} className="mt-4 space-y-3 border-t border-red-200 pt-3">
+                  <form onSubmit={handleDisableMfa} className="mt-3 space-y-2 border-t border-red-200 pt-3">
                     <p className="text-xs font-semibold text-red-900">
-                      Enter your current password to confirm disabling Two-Factor Authentication:
+                      Confirm your current account password:
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                       <input
@@ -318,14 +287,14 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
                         value={disablePassword}
                         onChange={(e) => setDisablePassword(e.target.value)}
                         placeholder="Current password"
-                        className="h-9 flex-1 min-w-[200px] rounded-xl border border-red-300 bg-card px-3 text-xs text-ink focus:border-red-600 focus:outline-none"
+                        className="h-9 flex-1 min-w-[180px] rounded-xl border border-red-300 bg-card px-3 text-xs text-ink focus:border-red-600 focus:outline-none"
                       />
                       <button
                         type="submit"
                         disabled={disableLoading || !disablePassword}
-                        className="h-9 rounded-full bg-red-600 px-4 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+                        className="h-9 rounded-xl bg-red-600 px-4 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
                       >
-                        {disableLoading ? 'Verifying...' : 'Confirm Disable'}
+                        {disableLoading ? 'Verifying...' : 'Confirm'}
                       </button>
                       <button
                         type="button"
@@ -334,7 +303,7 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
                           setDisablePassword('')
                           setDisableError(null)
                         }}
-                        className="h-9 rounded-full border border-line-strong bg-card px-3 text-xs font-semibold text-ink-2 hover:bg-subtle"
+                        className="h-9 rounded-xl border border-line-strong bg-card px-3 text-xs font-semibold text-ink-2 hover:bg-subtle"
                       >
                         Cancel
                       </button>
@@ -347,126 +316,104 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
               </div>
             </div>
           ) : (
-            /* ================= STATE 2: MFA SETUP ENROLLMENT ================= */
-            <div className="space-y-5">
-              <div className="rounded-xl border border-accent-300 bg-accent-50/70 p-3.5 text-xs text-ochre">
-                <p className="font-bold">Protect Your CMS Access</p>
-                <p className="mt-0.5 leading-relaxed">
-                  Two-Factor Authentication adds an extra layer of defense for Super Admins and Editors. Anyone attempting to access your account must supply both your password and a temporary verification code.
-                </p>
-              </div>
-
+            /* ================= STATE 2: ENROLLMENT SETUP ================= */
+            <div className="space-y-4">
               {setupSuccess && (
-                <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs font-medium text-emerald-800">
+                <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-800">
                   <CheckCircleIcon size={16} className="mt-0.5 shrink-0 text-emerald-600" />
                   <span>{setupSuccess}</span>
                 </div>
               )}
 
               {setupError && (
-                <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-medium text-red-800">
+                <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-800">
                   <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-red-600" />
                   <span>{setupError}</span>
                 </div>
               )}
 
-              {/* Step 1: Install app */}
-              <div className="flex items-start gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-900 text-xs font-bold text-white">
-                  1
-                </span>
-                <div>
-                  <h4 className="text-xs font-bold text-ink">Install an Authenticator App</h4>
-                  <p className="mt-0.5 text-xs text-ink-2">
-                    Use <strong>Google Authenticator</strong>, <strong>Microsoft Authenticator</strong>, <strong>Apple Passwords</strong>, or <strong>Authy</strong> on your smartphone.
-                  </p>
-                </div>
-              </div>
+              {/* Step 1 & 2 in Clean Side-by-Side Card */}
+              <div className="rounded-xl border border-line bg-canvas p-4 space-y-4">
+                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+                  {/* Verified QR Code Image */}
+                  <div className="flex size-40 shrink-0 items-center justify-center rounded-2xl border border-line bg-white p-2 shadow-xs">
+                    {qrDataUrl ? (
+                      <img
+                        src={qrDataUrl}
+                        alt="Scan QR code with Google Authenticator"
+                        className="size-full rounded-lg object-contain"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs text-ink-3">
+                        <RefreshIcon size={14} className="animate-spin" />
+                        <span>Loading QR...</span>
+                      </div>
+                    )}
+                  </div>
 
-              {/* Step 2: Scan QR or copy key */}
-              <div className="flex items-start gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-900 text-xs font-bold text-white">
-                  2
-                </span>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-xs font-bold text-ink">Scan QR Code or Enter Setup Key</h4>
-                  <p className="mt-0.5 text-xs text-ink-2">
-                    In your authenticator app, tap <strong>+</strong> and scan this QR code:
-                  </p>
-
-                  <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                    {/* SVG QR Code */}
-                    <div className="rounded-xl border border-line-strong bg-white p-2 shadow-xs">
-                      <QrCodeSvg text={secretData?.uri || ''} size={168} />
+                  <div className="flex-1 min-w-0 space-y-2.5 text-center sm:text-left">
+                    <div>
+                      <h4 className="text-xs font-bold text-ink">1. Scan with Authenticator</h4>
+                      <p className="mt-0.5 text-xs text-ink-2 leading-relaxed">
+                        Open Google Authenticator, Microsoft Authenticator, or Authy and scan this code.
+                      </p>
                     </div>
 
-                    {/* Manual Key */}
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <p className="text-[0.7rem] font-bold uppercase tracking-wider text-ink-3">
-                        Manual Entry Secret Key:
-                      </p>
-                      <div className="flex items-center gap-2 rounded-xl border border-line-strong bg-canvas px-3 py-2 font-mono text-xs font-bold tracking-wider text-ink">
-                        <span className="truncate">{formattedSecret}</span>
+                    <div>
+                      <p className="text-[11px] font-semibold text-ink-3">Or enter key manually:</p>
+                      <div className="mt-1 flex items-center justify-between gap-2 rounded-xl border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-bold tracking-wider text-ink">
+                        <span className="truncate select-all">{formattedSecret}</span>
                         <button
                           type="button"
                           onClick={handleCopySecret}
-                          className="shrink-0 rounded-lg p-1 text-ink-2 hover:bg-card hover:text-brand"
-                          title="Copy secret key"
+                          className="shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-brand hover:bg-subtle"
+                          title="Copy setup key"
                         >
                           {copied ? (
-                            <CheckIcon size={14} className="text-emerald-700" />
+                            <CheckIcon size={12} className="text-emerald-700" />
                           ) : (
-                            <CopyIcon size={14} />
+                            <CopyIcon size={12} />
                           )}
+                          <span>{copied ? 'Copied' : 'Copy'}</span>
                         </button>
                       </div>
-                      <p className="text-[0.68rem] text-ink-3">
-                        Account: {user?.email || profile?.email} | Type: Time-based (TOTP)
-                      </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Step 3: Enter code and verify */}
-              <div className="flex items-start gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-900 text-xs font-bold text-white">
-                  3
-                </span>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-xs font-bold text-ink">Confirm 6-Digit Code</h4>
-                  <p className="mt-0.5 text-xs text-ink-2">
-                    Enter the code currently generated by your authenticator app to finalize enrollment:
-                  </p>
+              {/* Step 3: Verify and activate */}
+              <div className="rounded-xl border border-line bg-canvas p-4">
+                <h4 className="text-xs font-bold text-ink">2. Enter 6-digit confirmation code</h4>
+                <p className="mt-0.5 text-xs text-ink-2">
+                  Enter the temporary code currently showing in your authenticator app:
+                </p>
 
-                  <form onSubmit={handleEnableMfa} className="mt-3 space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={6}
-                        required
-                        value={setupCode}
-                        onChange={(e) => setSetupCode(e.target.value.replace(/\D/g, ''))}
-                        placeholder="123456"
-                        className="h-10 w-44 rounded-xl border border-line-strong bg-card text-center font-mono text-lg font-bold tracking-[0.25em] text-ink focus:border-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100"
-                      />
-                      <button
-                        type="submit"
-                        disabled={setupLoading || setupCode.length !== 6}
-                        className="flex h-10 items-center gap-2 rounded-full bg-primary-900 px-5 text-xs font-bold text-white shadow-soft transition hover:bg-primary-700 disabled:opacity-50"
-                      >
-                        {setupLoading ? (
-                          <RefreshIcon size={14} className="animate-spin" />
-                        ) : (
-                          <ShieldCheckIcon size={14} />
-                        )}
-                        <span>Verify &amp; Activate 2FA</span>
-                      </button>
-                    </div>
-                  </form>
-                </div>
+                <form onSubmit={handleEnableMfa} className="mt-3 flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    required
+                    value={setupCode}
+                    onChange={(e) => setSetupCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000"
+                    className="h-10 w-36 rounded-xl border border-line-strong bg-card text-center font-mono text-base font-bold tracking-[0.25em] text-ink focus:border-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100"
+                  />
+                  <button
+                    type="submit"
+                    disabled={setupLoading || setupCode.length !== 6}
+                    className="flex h-10 items-center gap-1.5 rounded-xl bg-primary-900 px-5 text-xs font-bold text-white shadow-soft transition hover:bg-primary-700 disabled:opacity-50"
+                  >
+                    {setupLoading ? (
+                      <RefreshIcon size={14} className="animate-spin" />
+                    ) : (
+                      <ShieldCheckIcon size={14} />
+                    )}
+                    <span>Activate 2FA</span>
+                  </button>
+                </form>
               </div>
             </div>
           )}
@@ -477,7 +424,7 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-line-strong bg-card px-5 py-2 text-xs font-bold text-ink hover:bg-subtle"
+            className="rounded-xl border border-line-strong bg-card px-4 py-1.5 text-xs font-semibold text-ink hover:bg-subtle"
           >
             Close
           </button>
