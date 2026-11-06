@@ -49,15 +49,19 @@ export function base32Decode(base32: string): Uint8Array {
 
 /**
  * Generates the standard `otpauth://totp/...` URI for scanning into Authenticator apps.
+ * Follows Google Authenticator Key URI Format:
+ * otpauth://totp/{issuer}:{account}?secret={secret}&issuer={issuer}&digits=6&period=30
  */
 export function generateTotpUri(
   accountEmail: string,
   secret: string,
   issuer = 'Heifer Academy'
 ): string {
-  const encodedIssuer = encodeURIComponent(issuer)
-  const encodedAccount = encodeURIComponent(accountEmail.trim().toLowerCase())
-  return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`
+  const cleanIssuer = issuer.trim()
+  const cleanAccount = accountEmail.trim().toLowerCase()
+  const encodedIssuer = encodeURIComponent(cleanIssuer)
+  const encodedAccount = encodeURIComponent(cleanAccount)
+  return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${secret}&issuer=${encodedIssuer}&digits=6&period=30`
 }
 
 /**

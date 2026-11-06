@@ -89,6 +89,13 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
     }
   }
 
+  const handleRegenerateSecret = () => {
+    const fresh = generateNewMfaSecret(true)
+    setSecretData(fresh)
+    setSetupCode('')
+    setSetupError(null)
+  }
+
   const handleEnableMfa = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!secretData?.secret) return
@@ -360,7 +367,17 @@ export function MfaModal({ isOpen, onClose }: MfaModalProps) {
                     </div>
 
                     <div>
-                      <p className="text-[11px] font-semibold text-ink-3">Or enter key manually:</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold text-ink-3">Or enter key manually:</p>
+                        <button
+                          type="button"
+                          onClick={handleRegenerateSecret}
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand hover:underline"
+                        >
+                          <RefreshIcon size={11} />
+                          <span>New QR Code</span>
+                        </button>
+                      </div>
                       <div className="mt-1 flex items-center justify-between gap-2 rounded-xl border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-bold tracking-wider text-ink">
                         <span className="truncate select-all">{formattedSecret}</span>
                         <button

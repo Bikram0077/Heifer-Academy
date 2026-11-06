@@ -87,7 +87,7 @@ type AuthContextType = {
   isMfaVerified: boolean
   resolveMfaWithCode: (code: string) => Promise<void>
   cancelMfaChallenge: () => Promise<void>
-  generateNewMfaSecret: () => { secret: string; uri: string }
+  generateNewMfaSecret: (forceNew?: boolean) => { secret: string; uri: string }
   enableMfaForCurrentUser: (secret: string, verificationCode: string) => Promise<void>
   disableMfaForCurrentUser: (password: string) => Promise<void>
   testMfaCodeForCurrentUser: (code: string) => Promise<boolean>
@@ -437,7 +437,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('No two-factor authenticator key configured for this account.')
       }
 
-      const isValid = await verifyTotpCode(cleanCode, secret)
+      const isValid = await verifyTotpCode(cleanCode, secret, { window: 4 })
       if (!isValid) {
         const msg = 'Invalid 6-digit verification code. Please check your authenticator app.'
         setError(msg)
@@ -483,12 +483,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const generateNewMfaSecret = () => {
+  const generateNewMfaSecret = (forceNew = false) => {
+    // If not forced and we have a pending secret in session, reuse it so scanning & entering OTP never desyncs
+    if (!forceNew && typeof window !== 'undefined') {
+      try {
+        const cached = window.sessionStorage.getItem('ha_pending_mfa_secret')
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (parsed && typeof parsed.secret === 'string' && typeof parsed.uri === 'string') {
+            return parsed as { secret: string; uri: string }
+          }
+        }
+      } catch {}
+    }
+
     // 32 Base32 characters = 160 bits (20 bytes HMAC-SHA1 digest length)
     const secret = generateTotpSecret(32)
     const emailForUri = user?.email || profile?.email || 'admin@heifer.org'
     const uri = generateTotpUri(emailForUri, secret, 'Heifer Academy CMS')
-    return { secret, uri }
+    const result = { secret, uri }
+
+    if (typeof window !== 'undefined') {
+      try {
+        window.sessionStorage.setItem('ha_pending_mfa_secret', JSON.stringify(result))
+      } catch {}
+    }
+    return result
   }
 
   const enableMfaForCurrentUser = async (secret: string, verificationCode: string) => {
@@ -498,21 +518,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!/^\d{6}$/.test(cleanCode)) {
       throw new Error('Please enter a 6-digit verification code.')
     }
-    const isValid = await verifyTotpCode(cleanCode, secret, { window: 2 })
+
+    // Window 4 allows +/- 120s clock skew tolerance to handle device / smartphone time drifts
+    const isValid = await verifyTotpCode(cleanCode, secret, { window: 4 })
     if (!isValid) {
       throw new Error('Verification code incorrect. Please verify your authenticator app time and code.')
     }
+
     const enrolledAt = new Date().toISOString()
-    await updateDoc(doc(db, 'users', user.uid), {
-      mfaEnabled: true,
-      mfaSecret: secret,
-      mfaEnrolledAt: enrolledAt,
-    })
+    const userDocRef = doc(db, 'users', user.uid)
+    const snap = await getDoc(userDocRef)
+
+    if (snap.exists()) {
+      await updateDoc(userDocRef, {
+        mfaEnabled: true,
+        mfaSecret: secret,
+        mfaEnrolledAt: enrolledAt,
+      })
+    } else {
+      await setDoc(userDocRef, {
+        email: user.email?.toLowerCase() || '',
+        name: profile?.name || user.displayName || 'Staff Member',
+        role: profile?.role || 'editor',
+        disabled: false,
+        createdAt: enrolledAt,
+        mfaEnabled: true,
+        mfaSecret: secret,
+        mfaEnrolledAt: enrolledAt,
+      })
+    }
+
     setProfile((prev) =>
       prev ? { ...prev, mfaEnabled: true, mfaSecret: secret, mfaEnrolledAt: enrolledAt } : prev
     )
     try {
       window.sessionStorage.setItem('ha_cms_mfa_verified', user.uid)
+      window.sessionStorage.removeItem('ha_pending_mfa_secret')
     } catch {}
     setIsMfaVerified(true)
     setMfaChallengeRequired(false)
@@ -537,6 +578,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )
     try {
       window.sessionStorage.removeItem('ha_cms_mfa_verified')
+      window.sessionStorage.removeItem('ha_pending_mfa_secret')
     } catch {}
     setIsMfaVerified(true)
     setMfaChallengeRequired(false)
@@ -545,7 +587,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const testMfaCodeForCurrentUser = async (code: string): Promise<boolean> => {
     const cleanCode = code.trim().replace(/\s+/g, '')
     if (!profile?.mfaSecret || !/^\d{6}$/.test(cleanCode)) return false
-    return await verifyTotpCode(cleanCode, profile.mfaSecret)
+    return await verifyTotpCode(cleanCode, profile.mfaSecret, { window: 4 })
   }
 
   const logout = async (redirectTarget?: string | unknown) => {
