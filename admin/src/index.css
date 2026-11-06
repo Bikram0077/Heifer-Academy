@@ -45,12 +45,14 @@
     text-rendering: optimizeLegibility;
     color-scheme: light;
   }
+
   body {
     background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-weight: 500;
   }
+
   a,
   button,
   input,
@@ -62,13 +64,16 @@
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
+
   button:not(:disabled) {
     cursor: pointer;
   }
+
   :focus-visible {
     outline: 2px solid var(--color-primary-500);
     outline-offset: 2px;
   }
+
   ::selection {
     background: #ffd9a8;
     color: #082c49;
@@ -83,6 +88,7 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   scrollbar-width: none;
 }

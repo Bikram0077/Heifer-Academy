@@ -34,6 +34,7 @@ import { firebaseConfig } from '@shared/firebaseConfig'
 import { extractFirebaseAuthAction } from '@shared/authAction'
 import { auth, db } from '../firebase'
 import type { Role, UserProfile, Invite } from '@shared/schema'
+import { tokenStore } from '@shared/security/tokens'
 import {
   dispatchCredentialsViaRelay,
   getStoredStaffCredential,
@@ -300,17 +301,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Ensure credentials terminate upon closing browser or tab
       await setPersistence(auth, browserSessionPersistence)
-      await signInWithEmailAndPassword(auth, email.trim(), pass)
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), pass)
+      try {
+        const idToken = await cred.user.getIdToken()
+        tokenStore.setAccessToken(idToken, 15 * 60)
+      } catch {
+        // Fallback gracefully
+      }
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      let msg = 'Failed to sign in. Please verify your email and password.'
-      if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password') {
-        msg =
-          'Incorrect email or password. Ask your Super Admin for your assigned login credentials, or click "Set / Forgot password?" below.'
-      } else if (e.code === 'auth/user-not-found') {
-        msg = 'No account found with this email.'
-      } else if (e.code === 'auth/too-many-requests') {
-        msg = 'Too many failed attempts. Please wait a moment and try again.'
+      let msg = 'Invalid email or password. Please verify your credentials or contact your administrator.'
+      if (e.code === 'auth/too-many-requests') {
+        msg = 'Too many failed login attempts. Access temporarily restricted. Please wait a moment and try again.'
       }
       setError(msg)
       throw new Error(msg)
@@ -332,6 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setProfile(null)
     setUser(null)
+    tokenStore.clear()
     clearStaffCredentialVault()
     try {
       window.sessionStorage.clear()

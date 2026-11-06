@@ -129,3 +129,4 @@ export function useInactivityAutoLogout({
 
   return { resetTimer }
 }
+

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useLoginRateLimiter } from '../hooks/useLoginRateLimiter'
 import heiferLogoLight from '@siteAssets/heifer-academy-logo-light.png'
 import heiferLogoDark from '@siteAssets/heifer-academy-logo-dark.png'
 import {
@@ -49,6 +50,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const { isLocked, remainingSeconds, recordFailedAttempt, resetRateLimit } = useLoginRateLimiter()
   const [inactivityNotice, setInactivityNotice] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     try {
@@ -81,6 +83,9 @@ export function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (mode === 'login' && isLocked) {
+      return
+    }
     clearError()
     setSuccessMsg(null)
     setSubmitting(true)
@@ -88,6 +93,7 @@ export function LoginPage() {
     try {
       if (mode === 'login') {
         await login(email, password)
+        resetRateLimit()
       } else if (mode === 'bootstrap') {
         await bootstrapSuperAdmin(name, email, password)
       } else if (mode === 'invite') {
@@ -99,7 +105,9 @@ export function LoginPage() {
         )
       }
     } catch {
-      // Handled via AuthContext error state
+      if (mode === 'login') {
+        recordFailedAttempt()
+      }
     } finally {
       setSubmitting(false)
     }
@@ -416,9 +424,18 @@ export function LoginPage() {
                     </div>
                   )}
 
+                  {mode === 'login' && isLocked && (
+                    <div className="flex items-start gap-2.5 rounded-xl border border-red-300 bg-red-50 p-3.5 text-xs font-medium text-red-900">
+                      <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-red-700" />
+                      <span>
+                        Too many failed login attempts. Please wait {remainingSeconds}s before trying again.
+                      </span>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={submitting || (mode === 'login' && isLocked)}
                     className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary-900 px-5 text-sm font-bold text-white shadow-soft transition hover:bg-primary-700 disabled:opacity-50"
                   >
                     {submitting ? (
@@ -427,7 +444,7 @@ export function LoginPage() {
                       <LockIcon size={15} />
                     )}
                     <span>
-                      {mode === 'login' && 'Sign In to CMS'}
+                      {mode === 'login' && (isLocked ? `Locked (${remainingSeconds}s)` : 'Sign In to CMS')}
                       {mode === 'bootstrap' && 'Initialize Super Admin'}
                       {mode === 'invite' && 'Complete Staff Registration'}
                       {mode === 'reset' && 'Email Password Setup Link'}

@@ -8,7 +8,7 @@ export type StoredStaffCredential = {
   email: string
   name: string
   role: Role
-  password: string
+  password?: string
   cmsLoginUrl: string
   updatedAt: string
 }
@@ -22,24 +22,42 @@ export type EmailRelayConfig = {
   emailJsPublicKey?: string
 }
 
+let memoryVault: Record<string, StoredStaffCredential> = {}
+
 export function loadStaffCredentialVault(): Record<string, StoredStaffCredential> {
-  if (typeof window === 'undefined') return {}
+  const storage =
+    typeof window !== 'undefined' ? window.sessionStorage : (globalThis as unknown as { sessionStorage?: Storage }).sessionStorage
+  if (!storage) return memoryVault
   try {
-    // Strictly store credentials in sessionStorage to terminate on tab/browser close
-    let raw = window.sessionStorage.getItem(VAULT_STORAGE_KEY)
-    if (!raw) {
+    // Strictly store directory metadata in sessionStorage to terminate on tab/browser close
+    let raw = storage.getItem(VAULT_STORAGE_KEY)
+    if (!raw && typeof window !== 'undefined' && window.localStorage) {
       // Migrate legacy localStorage entry if present and immediately delete from localStorage
       raw = window.localStorage.getItem(VAULT_STORAGE_KEY)
       if (raw) {
-        window.sessionStorage.setItem(VAULT_STORAGE_KEY, raw)
+        storage.setItem(VAULT_STORAGE_KEY, raw)
         window.localStorage.removeItem(VAULT_STORAGE_KEY)
       }
     }
-    if (!raw) return {}
+    if (!raw) return memoryVault
     const parsed = JSON.parse(raw) as Record<string, StoredStaffCredential>
-    return parsed && typeof parsed === 'object' ? parsed : {}
+    if (!parsed || typeof parsed !== 'object') return memoryVault
+
+    // Security Hardening: strip any legacy plaintext passwords immediately
+    let modified = false
+    for (const key of Object.keys(parsed)) {
+      if (parsed[key] && 'password' in parsed[key]) {
+        delete parsed[key].password
+        modified = true
+      }
+    }
+    if (modified) {
+      storage.setItem(VAULT_STORAGE_KEY, JSON.stringify(parsed))
+    }
+
+    return parsed
   } catch {
-    return {}
+    return memoryVault
   }
 }
 
@@ -51,43 +69,71 @@ export function getStoredStaffCredential(email: string): StoredStaffCredential |
 }
 
 export function saveStoredStaffCredential(entry: StoredStaffCredential): void {
-  if (typeof window === 'undefined') return
   const key = entry.email.trim().toLowerCase()
-  if (!key || !entry.password) return
+  if (!key) return
+
+  // OWASP A02: Never persist plaintext passwords to browser storage
+  const { password: _stripped, ...safeEntry } = entry
+  memoryVault[key] = {
+    ...safeEntry,
+    email: key,
+  }
+
+  const storage =
+    typeof window !== 'undefined' ? window.sessionStorage : (globalThis as unknown as { sessionStorage?: Storage }).sessionStorage
+  if (!storage) return
+
   try {
     const vault = loadStaffCredentialVault()
     vault[key] = {
-      ...entry,
+      ...safeEntry,
       email: key,
     }
-    // Strictly use sessionStorage; ensure removal from localStorage
-    window.sessionStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault))
-    window.localStorage.removeItem(VAULT_STORAGE_KEY)
+    storage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault))
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(VAULT_STORAGE_KEY)
+    }
   } catch {
     // Ignore storage quota / private mode errors
   }
 }
 
 export function removeStoredStaffCredential(email: string): void {
-  if (typeof window === 'undefined') return
   const key = email.trim().toLowerCase()
+  delete memoryVault[key]
+  const storage =
+    typeof window !== 'undefined' ? window.sessionStorage : (globalThis as unknown as { sessionStorage?: Storage }).sessionStorage
+  if (!storage) return
+
   try {
     const vault = loadStaffCredentialVault()
     delete vault[key]
-    window.sessionStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault))
-    window.localStorage.removeItem(VAULT_STORAGE_KEY)
+    storage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault))
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(VAULT_STORAGE_KEY)
+    }
   } catch {
     // Ignore storage errors
   }
 }
 
 export function clearStaffCredentialVault(): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.sessionStorage.removeItem(VAULT_STORAGE_KEY)
-    window.localStorage.removeItem(VAULT_STORAGE_KEY)
-  } catch {
-    // Ignore storage errors
+  memoryVault = {}
+  const storage =
+    typeof window !== 'undefined' ? window.sessionStorage : (globalThis as unknown as { sessionStorage?: Storage }).sessionStorage
+  if (storage) {
+    try {
+      storage.removeItem(VAULT_STORAGE_KEY)
+    } catch {
+      // Ignore storage errors
+    }
+  }
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem(VAULT_STORAGE_KEY)
+    } catch {
+      // Ignore storage errors
+    }
   }
 }
 
