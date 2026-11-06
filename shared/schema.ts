@@ -9,6 +9,9 @@ export type UserProfile = {
   role: Role
   disabled: boolean
   createdAt: string
+  mfaEnabled?: boolean
+  mfaEnrolledAt?: string
+  mfaSecret?: string
 }
 
 export type Invite = {

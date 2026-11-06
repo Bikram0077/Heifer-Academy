@@ -21,7 +21,16 @@ const SUPER_ADMIN_ONLY_TABS: AdminTab[] = ['users', 'settings']
  * 3. Role-Based Access Control (RBAC): Tabs restricted to Super Admin cannot be viewed by editors or viewers.
  */
 export function AdminRouteGuard({ currentTab, children }: AdminRouteGuardProps) {
-  const { user, profile, loading, isBootstrapped, isSuperAdmin, logout } = useAuth()
+  const {
+    user,
+    profile,
+    loading,
+    isBootstrapped,
+    isSuperAdmin,
+    isMfaVerified,
+    mfaChallengeRequired,
+    logout,
+  } = useAuth()
 
   // 1. Loading state with zero leakage
   if (loading || isBootstrapped === null) {
@@ -41,8 +50,8 @@ export function AdminRouteGuard({ currentTab, children }: AdminRouteGuardProps) 
     )
   }
 
-  // 2. Authentication Gate: Unauthenticated users are strictly barred
-  if (!user || !profile) {
+  // 2. Authentication & MFA Gate: Unauthenticated or pending 2FA challenge users are strictly barred
+  if (!user || !profile || mfaChallengeRequired || (profile.mfaEnabled && !isMfaVerified)) {
     return <LoginPage />
   }
 

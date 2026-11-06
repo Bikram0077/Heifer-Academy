@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { validateSuperAdminPassword } from '../shared/security/passwordPolicy'
+import {
+  generateTotpSecret,
+  generateTotpUri,
+  generateTotpCode,
+  verifyTotpCode,
+} from '../shared/security/totp'
+import { generateQrSvg, generateQrMatrix } from '../shared/security/qr'
 
 describe('Super Admin Password Complexity & Brute-Force Hardening', () => {
   it('rejects passwords shorter than 10 characters', () => {
@@ -53,4 +60,57 @@ describe('Multi-Factor Authentication (MFA) Verification Logic', () => {
     expect(/^\d{6}$/.test(cleanTotp('1234567'))).toBe(false) // too long
     expect(/^\d{6}$/.test(cleanTotp('12345a'))).toBe(false) // non-numeric
   })
+
+  it('generates compliant Base32 RFC 6238 TOTP secrets', () => {
+    const secret = generateTotpSecret(20)
+    expect(secret.length).toBe(20)
+    expect(/^[A-Z2-7]+$/.test(secret)).toBe(true)
+  })
+
+  it('generates standard otpauth:// URIs with proper query parameters', () => {
+    const uri = generateTotpUri('admin@heifer.org', 'JBSWY3DPEHPK3PXP', 'Heifer Academy')
+    expect(uri).toContain('otpauth://totp/Heifer%20Academy:admin%40heifer.org?')
+    expect(uri).toContain('secret=JBSWY3DPEHPK3PXP')
+    expect(uri).toContain('digits=6')
+    expect(uri).toContain('period=30')
+  })
+
+  it('generates and verifies dynamic 6-digit TOTP codes with skew tolerance', async () => {
+    const secret = generateTotpSecret(20)
+    const now = Date.now()
+    const code = await generateTotpCode(secret, now)
+    expect(/^\d{6}$/.test(code)).toBe(true)
+
+    // Current time
+    const validCurrent = await verifyTotpCode(code, secret, { timestampMs: now })
+    expect(validCurrent).toBe(true)
+
+    // Window +/- 30s skew tolerance
+    const validPastSkew = await verifyTotpCode(code, secret, { timestampMs: now + 25000 })
+    expect(validPastSkew).toBe(true)
+
+    // Beyond window skew rejected
+    const expiredSkew = await verifyTotpCode(code, secret, { timestampMs: now + 120000 })
+    expect(expiredSkew).toBe(false)
+
+    // Invalid code rejected
+    const invalid = await verifyTotpCode('000000', secret, { timestampMs: now })
+    expect(invalid).toBe(false)
+  })
+
+  it('generates valid SVG QR code markup offline', () => {
+    const uri = generateTotpUri('editor@heifer.org', 'JBSWY3DPEHPK3PXP', 'Heifer Academy CMS')
+    const matrix = generateQrMatrix(uri)
+    expect(matrix.length).toBeGreaterThanOrEqual(21)
+    expect(matrix[0].length).toBe(matrix.length)
+
+    const svg = generateQrSvg(uri, { size: 180 })
+    expect(svg).toContain('<svg')
+    expect(svg).toContain('viewBox=')
+    expect(svg).toContain('width="180"')
+    expect(svg).toContain('height="180"')
+    expect(svg).toContain('<path d="')
+  })
 })
+
+

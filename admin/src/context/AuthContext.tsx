@@ -17,6 +17,8 @@ import {
   onAuthStateChanged,
   getMultiFactorResolver,
   TotpMultiFactorGenerator,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   type ActionCodeSettings,
   type Auth,
   type User,
@@ -39,6 +41,11 @@ import { auth, db } from '../firebase'
 import type { Role, UserProfile, Invite } from '@shared/schema'
 import { tokenStore } from '@shared/security/tokens'
 import { validateSuperAdminPassword } from '@shared/security/passwordPolicy'
+import {
+  generateTotpSecret,
+  generateTotpUri,
+  verifyTotpCode,
+} from '@shared/security/totp'
 import {
   dispatchCredentialsViaRelay,
   getStoredStaffCredential,
@@ -77,8 +84,13 @@ type AuthContextType = {
   error: string | null
   clearError: () => void
   mfaChallengeRequired: boolean
+  isMfaVerified: boolean
   resolveMfaWithCode: (code: string) => Promise<void>
-  cancelMfaChallenge: () => void
+  cancelMfaChallenge: () => Promise<void>
+  generateNewMfaSecret: () => { secret: string; uri: string }
+  enableMfaForCurrentUser: (secret: string, verificationCode: string) => Promise<void>
+  disableMfaForCurrentUser: (password: string) => Promise<void>
+  testMfaCodeForCurrentUser: (code: string) => Promise<boolean>
   login: (email: string, pass: string) => Promise<void>
   logout: (redirectUrl?: string) => Promise<void>
   bootstrapSuperAdmin: (name: string, email: string, pass: string) => Promise<void>
@@ -191,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null)
   const [mfaChallengeRequired, setMfaChallengeRequired] = useState(false)
+  const [isMfaVerified, setIsMfaVerified] = useState<boolean>(false)
 
   // Listen to meta/bootstrap document (matches firestore.rules exists(bootstrapPath()))
   useEffect(() => {
@@ -241,6 +254,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setError('This administrator account has been disabled by a Super Admin.')
             } else {
               setProfile(data)
+              if (data.mfaEnabled) {
+                let verified = false
+                try {
+                  verified = window.sessionStorage.getItem('ha_cms_mfa_verified') === fbUser.uid
+                } catch {}
+                setIsMfaVerified(verified)
+                setMfaChallengeRequired(!verified)
+              } else {
+                setIsMfaVerified(true)
+                setMfaChallengeRequired(false)
+              }
             }
             setHasPendingInvite(false)
             setPendingInviteRole(null)
@@ -311,6 +335,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Ensure credentials terminate upon closing browser or tab
       await setPersistence(auth, browserSessionPersistence)
       const cred = await signInWithEmailAndPassword(auth, email.trim(), pass)
+
+      // Check whether user profile already has MFA enabled
+      const profileSnap = await getDoc(doc(db, 'users', cred.user.uid))
+      if (profileSnap.exists()) {
+        const pData = profileSnap.data() as UserProfile
+        if (pData.mfaEnabled) {
+          let verified = false
+          try {
+            verified = window.sessionStorage.getItem('ha_cms_mfa_verified') === cred.user.uid
+          } catch {}
+          if (!verified) {
+            setIsMfaVerified(false)
+            setMfaChallengeRequired(true)
+            return
+          }
+        }
+      }
+
+      setIsMfaVerified(true)
+      setMfaChallengeRequired(false)
       try {
         const idToken = await cred.user.getIdToken()
         tokenStore.setAccessToken(idToken, 15 * 60)
@@ -318,13 +362,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Fallback gracefully
       }
       setMfaResolver(null)
-      setMfaChallengeRequired(false)
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
       if (e.code === 'auth/multi-factor-auth-required') {
         const resolver = getMultiFactorResolver(auth, err as any)
         setMfaResolver(resolver)
         setMfaChallengeRequired(true)
+        setIsMfaVerified(false)
         setLoading(false)
         return
       }
@@ -340,7 +384,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const resolveMfaWithCode = async (totpCode: string) => {
-    if (!mfaResolver) throw new Error('No active two-factor challenge found.')
     setError(null)
     setLoading(true)
     try {
@@ -349,26 +392,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Please enter a valid 6-digit numeric verification code.')
       }
 
-      const totpHint = mfaResolver.hints.find(
-        (h) => h.factorId === TotpMultiFactorGenerator.FACTOR_ID
-      )
-      if (!totpHint) {
-        throw new Error('No supported authenticator app factor enrolled for this account.')
+      // Case 1: Native GCP Identity Platform MFA if resolver is present
+      if (mfaResolver) {
+        const totpHint = mfaResolver.hints.find(
+          (h) => h.factorId === TotpMultiFactorGenerator.FACTOR_ID
+        )
+        if (!totpHint) {
+          throw new Error('No supported authenticator app factor enrolled for this account.')
+        }
+
+        const assertion = TotpMultiFactorGenerator.assertionForSignIn(
+          totpHint.uid,
+          cleanCode
+        )
+        const cred = await mfaResolver.resolveSignIn(assertion)
+        try {
+          const idToken = await cred.user.getIdToken()
+          tokenStore.setAccessToken(idToken, 15 * 60)
+          window.sessionStorage.setItem('ha_cms_mfa_verified', cred.user.uid)
+        } catch {
+          // Fallback gracefully
+        }
+        setMfaResolver(null)
+        setMfaChallengeRequired(false)
+        setIsMfaVerified(true)
+        return
       }
 
-      const assertion = TotpMultiFactorGenerator.assertionForSignIn(
-        totpHint.uid,
-        cleanCode
-      )
-      const cred = await mfaResolver.resolveSignIn(assertion)
+      // Case 2: Profile-based RFC 6238 TOTP
+      const activeUser = user || auth.currentUser
+      if (!activeUser) {
+        throw new Error('No active authentication session found. Please sign in again.')
+      }
+
+      let secret = profile?.mfaSecret
+      if (!secret) {
+        const uSnap = await getDoc(doc(db, 'users', activeUser.uid))
+        if (uSnap.exists()) {
+          secret = (uSnap.data() as UserProfile).mfaSecret
+        }
+      }
+
+      if (!secret) {
+        throw new Error('No two-factor authenticator key configured for this account.')
+      }
+
+      const isValid = await verifyTotpCode(cleanCode, secret)
+      if (!isValid) {
+        const msg = 'Invalid 6-digit verification code. Please check your authenticator app.'
+        setError(msg)
+        throw new Error(msg)
+      }
+
       try {
-        const idToken = await cred.user.getIdToken()
+        const idToken = await activeUser.getIdToken()
         tokenStore.setAccessToken(idToken, 15 * 60)
+        window.sessionStorage.setItem('ha_cms_mfa_verified', activeUser.uid)
       } catch {
         // Fallback gracefully
       }
-      setMfaResolver(null)
+
+      setIsMfaVerified(true)
       setMfaChallengeRequired(false)
+      setError(null)
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
       let msg = e.message || 'Two-factor verification failed. Please try again.'
@@ -382,10 +468,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const cancelMfaChallenge = () => {
+  const cancelMfaChallenge = async () => {
     setMfaResolver(null)
     setMfaChallengeRequired(false)
+    setIsMfaVerified(false)
     setError(null)
+    try {
+      window.sessionStorage.removeItem('ha_cms_mfa_verified')
+    } catch {}
+    if (auth.currentUser) {
+      try {
+        await fbSignOut(auth)
+      } catch {}
+    }
+  }
+
+  const generateNewMfaSecret = () => {
+    const secret = generateTotpSecret(20)
+    const emailForUri = user?.email || profile?.email || 'admin@heifer.org'
+    const uri = generateTotpUri(emailForUri, secret, 'Heifer Academy CMS')
+    return { secret, uri }
+  }
+
+  const enableMfaForCurrentUser = async (secret: string, verificationCode: string) => {
+    if (!user) throw new Error('You must be signed in to configure Two-Factor Authentication.')
+    setError(null)
+    const cleanCode = verificationCode.trim().replace(/\s+/g, '')
+    if (!/^\d{6}$/.test(cleanCode)) {
+      throw new Error('Please enter a 6-digit verification code.')
+    }
+    const isValid = await verifyTotpCode(cleanCode, secret)
+    if (!isValid) {
+      throw new Error('Verification code incorrect. Please verify your authenticator app time and code.')
+    }
+    await updateDoc(doc(db, 'users', user.uid), {
+      mfaEnabled: true,
+      mfaSecret: secret,
+      mfaEnrolledAt: new Date().toISOString(),
+    })
+    try {
+      window.sessionStorage.setItem('ha_cms_mfa_verified', user.uid)
+    } catch {}
+    setIsMfaVerified(true)
+    setMfaChallengeRequired(false)
+  }
+
+  const disableMfaForCurrentUser = async (password: string) => {
+    if (!user || !user.email) throw new Error('You must be signed in to modify MFA settings.')
+    setError(null)
+    try {
+      const cred = EmailAuthProvider.credential(user.email, password)
+      await reauthenticateWithCredential(user, cred)
+    } catch {
+      throw new Error('Incorrect password. Please enter your current account password to disable 2FA.')
+    }
+    await updateDoc(doc(db, 'users', user.uid), {
+      mfaEnabled: false,
+      mfaSecret: '',
+      mfaEnrolledAt: '',
+    })
+    try {
+      window.sessionStorage.removeItem('ha_cms_mfa_verified')
+    } catch {}
+    setIsMfaVerified(true)
+    setMfaChallengeRequired(false)
+  }
+
+  const testMfaCodeForCurrentUser = async (code: string): Promise<boolean> => {
+    const cleanCode = code.trim().replace(/\s+/g, '')
+    if (!profile?.mfaSecret || !/^\d{6}$/.test(cleanCode)) return false
+    return await verifyTotpCode(cleanCode, profile.mfaSecret)
   }
 
   const logout = async (redirectTarget?: string | unknown) => {
@@ -404,10 +556,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tokenStore.clear()
     clearStaffCredentialVault()
     try {
+      window.sessionStorage.removeItem('ha_cms_mfa_verified')
       window.sessionStorage.clear()
     } catch {
       // Ignore sessionStorage errors
     }
+    setIsMfaVerified(false)
+    setMfaChallengeRequired(false)
 
     if (typeof window !== 'undefined') {
       try {
@@ -984,8 +1139,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error,
         clearError: () => setError(null),
         mfaChallengeRequired,
+        isMfaVerified,
         resolveMfaWithCode,
         cancelMfaChallenge,
+        generateNewMfaSecret,
+        enableMfaForCurrentUser,
+        disableMfaForCurrentUser,
+        testMfaCodeForCurrentUser,
         login,
         logout,
         bootstrapSuperAdmin,

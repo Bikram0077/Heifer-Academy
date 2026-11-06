@@ -9,6 +9,7 @@ import {
 import { db } from '../firebase'
 import { useAuth, type InviteResult } from '../context/AuthContext'
 import type { Invite, Role, UserProfile } from '@shared/schema'
+import { MfaModal } from '../components/MfaModal'
 import {
   ConfirmModal,
   SectionCard,
@@ -61,6 +62,7 @@ export function UsersPage() {
     uid: string
     name: string
   } | null>(null)
+  const [showMfaModal, setShowMfaModal] = useState(false)
 
   useEffect(() => {
     setMyName(profile?.name || '')
@@ -324,6 +326,30 @@ export function UsersPage() {
                 Update Name
               </button>
             </div>
+
+            <div className="flex items-center justify-between border-t border-line pt-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`size-2 rounded-full ${
+                    profile?.mfaEnabled ? 'bg-emerald-500' : 'bg-amber-500'
+                  }`}
+                />
+                <span className="text-ink font-medium">
+                  Two-Factor Authentication:{' '}
+                  <strong className={profile?.mfaEnabled ? 'text-emerald-700' : 'text-amber-700'}>
+                    {profile?.mfaEnabled ? 'Active (Protected)' : 'Disabled'}
+                  </strong>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMfaModal(true)}
+                className="inline-flex items-center gap-1 rounded-full border border-line-strong bg-card px-3 py-1.5 text-xs font-semibold text-brand transition hover:border-primary-700 hover:bg-primary-50"
+              >
+                <ShieldCheckIcon size={13} />
+                {profile?.mfaEnabled ? 'Manage 2FA' : 'Enable 2FA'}
+              </button>
+            </div>
           </form>
         </SectionCard>
 
@@ -396,6 +422,16 @@ export function UsersPage() {
                         {isSelf && (
                           <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[0.65rem] font-bold text-brand uppercase">
                             You
+                          </span>
+                        )}
+                        {u.mfaEnabled ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-bold text-emerald-800">
+                            <ShieldCheckIcon size={12} />
+                            2FA Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-subtle px-2 py-0.5 text-[0.65rem] font-medium text-ink-3">
+                            2FA Off
                           </span>
                         )}
                         {u.disabled && (
@@ -777,6 +813,9 @@ export function UsersPage() {
           </div>
         </div>
       )}
+
+      {/* Two-Factor Authentication Modal */}
+      <MfaModal isOpen={showMfaModal} onClose={() => setShowMfaModal(false)} />
     </div>
   )
 }

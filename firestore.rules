@@ -112,7 +112,7 @@ service cloud.firestore {
 
       allow create: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['email', 'name', 'role', 'disabled', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['email', 'name', 'role', 'disabled', 'createdAt', 'mfaEnabled', 'mfaSecret', 'mfaEnrolledAt'])
         && request.resource.data.email == myEmail()
         && request.resource.data.disabled == false
         && validRole(request.resource.data.role)
@@ -127,12 +127,14 @@ service cloud.firestore {
           && validRole(request.resource.data.role)
           && request.resource.data.disabled is bool)
         ||
-        // Anyone active may change their own display name.
+        // Anyone active may change their own display name or manage their own MFA settings.
         (active()
           && uid == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
-          && request.resource.data.name is string
-          && request.resource.data.name.size() <= 80);
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'mfaEnabled', 'mfaSecret', 'mfaEnrolledAt'])
+          && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 80))
+          && (!('mfaEnabled' in request.resource.data) || request.resource.data.mfaEnabled is bool)
+          && (!('mfaSecret' in request.resource.data) || (request.resource.data.mfaSecret is string && request.resource.data.mfaSecret.size() <= 64))
+          && (!('mfaEnrolledAt' in request.resource.data) || (request.resource.data.mfaEnrolledAt is string && request.resource.data.mfaEnrolledAt.size() <= 40)));
 
       allow delete: if isSuper() && uid != request.auth.uid;
     }

@@ -3,6 +3,7 @@ import { sanitizeImageSrc } from '@shared/url'
 import { useAuth } from '../context/AuthContext'
 import { useCms } from '../context/CmsContext'
 import { useInactivityAutoLogout } from '../hooks/useInactivityAutoLogout'
+import { MfaModal } from './MfaModal'
 import heiferLogoDark from '@siteAssets/heifer-academy-logo-dark.png'
 import {
   CategoriesIcon,
@@ -19,6 +20,7 @@ import {
   PagesIcon,
   RefreshIcon,
   SettingsIcon,
+  ShieldCheckIcon,
   UploadIcon,
   UsersIcon,
   XIcon,
@@ -109,6 +111,7 @@ export function AdminLayout({
   const sidebarLogoSrc = sanitizeImageSrc(getSettings().data.brand?.logoDarkUrl, heiferLogoDark)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [publishNotice, setPublishNotice] = useState<string | null>(null)
+  const [mfaModalOpen, setMfaModalOpen] = useState(false)
 
   // Automatically log out user after 15 minutes of inactivity (mousedown, keydown, scroll)
   useInactivityAutoLogout({
@@ -249,28 +252,51 @@ export function AdminLayout({
           <ExternalIcon size={14} className="text-accent-500" />
         </a>
 
-        <div className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.05] px-3 py-2.5">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-500 text-xs font-extrabold text-primary-950">
-              {(profile?.name || profile?.email || 'A').charAt(0).toUpperCase()}
+        <div className="rounded-xl bg-white/[0.05] p-3 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-500 text-xs font-extrabold text-primary-950">
+                {(profile?.name || profile?.email || 'A').charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-bold text-white">
+                  {profile?.name || 'Administrator'}
+                </p>
+                <p className="truncate text-[0.68rem] font-semibold tracking-wider text-accent-500 uppercase">
+                  {profile?.role?.replace('_', ' ') || 'Staff'}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-bold text-white">
-                {profile?.name || 'Administrator'}
-              </p>
-              <p className="truncate text-[0.68rem] font-semibold tracking-wider text-accent-500 uppercase">
-                {profile?.role?.replace('_', ' ') || 'Staff'}
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={() => void logout()}
+              title="Sign out"
+              className="rounded-lg p-2 text-white/65 transition hover:bg-red-500/20 hover:text-red-300"
+            >
+              <LogOutIcon size={16} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            title="Sign out"
-            className="rounded-lg p-2 text-white/65 transition hover:bg-red-500/20 hover:text-red-300"
-          >
-            <LogOutIcon size={16} />
-          </button>
+
+          {/* 2FA Security Pill & Trigger */}
+          <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[0.7rem]">
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`size-2 rounded-full ${
+                  profile?.mfaEnabled ? 'bg-emerald-400' : 'bg-amber-400'
+                }`}
+              />
+              <span className="text-white/80 font-medium">
+                2FA: {profile?.mfaEnabled ? 'Active' : 'Off'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMfaModalOpen(true)}
+              className="rounded-md bg-white/10 px-2 py-0.5 text-[0.68rem] font-bold text-accent-500 transition hover:bg-white/20 hover:text-white"
+            >
+              {profile?.mfaEnabled ? 'Manage 2FA' : 'Enable 2FA'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -346,6 +372,24 @@ export function AdminLayout({
                 </button>
               )}
 
+              {/* 2FA Header Indicator & Manager */}
+              <button
+                type="button"
+                onClick={() => setMfaModalOpen(true)}
+                className={`hidden items-center gap-1.5 h-9 rounded-full px-3 text-xs font-semibold border transition sm:inline-flex ${
+                  profile?.mfaEnabled
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                    : 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                }`}
+                title="Manage Two-Factor Authentication (2FA)"
+              >
+                <ShieldCheckIcon
+                  size={14}
+                  className={profile?.mfaEnabled ? 'text-emerald-600' : 'text-amber-600'}
+                />
+                <span>2FA: {profile?.mfaEnabled ? 'Active' : 'Enable'}</span>
+              </button>
+
               <a
                 href={publicSiteHref}
                 target={isStandaloneAdmin ? '_blank' : undefined}
@@ -370,6 +414,9 @@ export function AdminLayout({
           {children}
         </main>
       </div>
+
+      {/* Two-Factor Authentication Management Dialog */}
+      <MfaModal isOpen={mfaModalOpen} onClose={() => setMfaModalOpen(false)} />
     </div>
   )
 }

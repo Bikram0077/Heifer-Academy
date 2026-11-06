@@ -32,6 +32,7 @@ export function LoginPage() {
     claimInviteForCurrentUser,
     resetPassword,
     mfaChallengeRequired,
+    isMfaVerified,
     resolveMfaWithCode,
     cancelMfaChallenge,
     error,
@@ -148,7 +149,7 @@ export function LoginPage() {
     }
   }
 
-  if (mfaChallengeRequired) {
+  if (mfaChallengeRequired || (profile?.mfaEnabled && !isMfaVerified)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas p-6 font-sans">
         <div className="w-full max-w-md rounded-2xl border border-line bg-card p-8 shadow-card">
@@ -247,24 +248,32 @@ export function LoginPage() {
             menus, and invite team members using any Gmail or organization email.
           </p>
 
-          <div className="mt-9 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/12 bg-white/[0.05] p-4">
-              <span className="inline-flex size-9 items-center justify-center rounded-lg bg-accent-500/20 text-accent-500">
-                <LanguagesIcon size={18} />
+          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/12 bg-white/[0.05] p-3.5">
+              <span className="inline-flex size-8 items-center justify-center rounded-lg bg-accent-500/20 text-accent-500">
+                <LanguagesIcon size={16} />
               </span>
-              <p className="mt-3 text-sm font-bold text-white">Side-by-Side Bilingual</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/70">
-                Edit English and नेपाली copy together for courses, materials, header/footer, and UI
-                labels.
+              <p className="mt-2.5 text-xs font-bold text-white">Side-by-Side Bilingual</p>
+              <p className="mt-1 text-[0.7rem] leading-relaxed text-white/70">
+                Edit English and नेपाली copy together for courses, guides, and labels.
               </p>
             </div>
-            <div className="rounded-2xl border border-white/12 bg-white/[0.05] p-4">
-              <span className="inline-flex size-9 items-center justify-center rounded-lg bg-teal-500/20 text-teal-500">
-                <SproutIcon size={18} />
+            <div className="rounded-2xl border border-white/12 bg-white/[0.05] p-3.5">
+              <span className="inline-flex size-8 items-center justify-center rounded-lg bg-teal-500/20 text-teal-400">
+                <SproutIcon size={16} />
               </span>
-              <p className="mt-3 text-sm font-bold text-white">Safe Draft &amp; Live Workflow</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/70">
-                Save working drafts privately and publish live to Firestore in a single click.
+              <p className="mt-2.5 text-xs font-bold text-white">Safe Draft &amp; Live</p>
+              <p className="mt-1 text-[0.7rem] leading-relaxed text-white/70">
+                Save drafts privately and publish to Firestore in one click.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/12 bg-white/[0.05] p-3.5">
+              <span className="inline-flex size-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
+                <ShieldCheckIcon size={16} />
+              </span>
+              <p className="mt-2.5 text-xs font-bold text-white">Two-Factor Auth (2FA)</p>
+              <p className="mt-1 text-[0.7rem] leading-relaxed text-white/70">
+                TOTP authenticator security for Super Admin &amp; Editor roles.
               </p>
             </div>
           </div>
@@ -420,6 +429,18 @@ export function LoginPage() {
                     'Enter your invited email to receive a password setup / reset link in your inbox.'}
                 </p>
 
+                {mode === 'login' && (
+                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-950">
+                    <ShieldCheckIcon size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+                    <div>
+                      <span className="font-bold">Two-Factor Authentication (2FA) Supported: </span>
+                      <span className="text-emerald-800">
+                        Super Admin &amp; Editor accounts with 2FA enabled will be prompted for an Authenticator code after password check.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {inactivityNotice && (
                   <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs font-medium text-amber-900">
                     <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-amber-700" />
@@ -497,6 +518,12 @@ export function LoginPage() {
                         placeholder="Minimum 6 characters"
                         className="w-full rounded-xl border border-line-strong bg-card px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-primary-700 focus:ring-4 focus:ring-primary-100 focus:outline-none"
                       />
+                      {mode === 'login' && (
+                        <div className="mt-1.5 flex items-center gap-1.5 text-[0.7rem] font-medium text-ink-3">
+                          <ShieldCheckIcon size={13} className="shrink-0 text-emerald-600" />
+                          <span>Supports Google Authenticator, Microsoft Authenticator &amp; TOTP</span>
+                        </div>
+                      )}
                     </div>
                   )}
 

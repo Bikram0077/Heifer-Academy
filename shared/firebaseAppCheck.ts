@@ -73,3 +73,4 @@ export function initAppCheck(app: FirebaseApp, options: AppCheckConfig = {}): Ap
     return null
   }
 }
+

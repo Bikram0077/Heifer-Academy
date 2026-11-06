@@ -89,3 +89,4 @@ export function validateSuperAdminPassword(password: string): PasswordValidation
     score: Math.min(4, score),
   }
 }
+

@@ -19,11 +19,13 @@ import {
   MegaphoneIcon,
   PlusIcon,
   RefreshIcon,
+  ShieldCheckIcon,
   SparklesIcon,
   TrashIcon,
 } from '../components/icons'
+import { MfaModal } from '../components/MfaModal'
 
-type SettingsTab = 'banner' | 'brand' | 'contact' | 'survey' | 'backup'
+type SettingsTab = 'banner' | 'brand' | 'contact' | 'survey' | 'backup' | 'security'
 
 export function SettingsPage() {
   const {
@@ -36,7 +38,7 @@ export function SettingsPage() {
     saving,
     publishing,
   } = useCms()
-  const { isSuperAdmin } = useAuth()
+  const { isSuperAdmin, profile } = useAuth()
   const { toast, showToast, clearToast } = useToast()
 
   const settingsDoc = getSettings()
@@ -47,6 +49,7 @@ export function SettingsPage() {
 
   const [tab, setTab] = useState<SettingsTab>('banner')
   const [confirmSeed, setConfirmSeed] = useState(false)
+  const [showMfaModal, setShowMfaModal] = useState(false)
 
   const handleSaveDraft = async () => {
     try {
@@ -141,6 +144,7 @@ export function SettingsPage() {
     { id: 'brand', label: 'Brand & Logo' },
     { id: 'contact', label: 'Footer Contact' },
     { id: 'survey', label: 'Learner Survey Options' },
+    { id: 'security', label: 'Security & 2FA' },
     { id: 'backup', label: 'Sync & Backup' },
   ]
 
@@ -652,6 +656,92 @@ export function SettingsPage() {
           </SectionCard>
         </div>
       )}
+
+      {tab === 'security' && (
+        <div className="space-y-6">
+          <SectionCard
+            eyebrow="Authentication & Protection"
+            title="Two-Factor Authentication (2FA / TOTP)"
+            description="Manage mobile authenticator app verification for your Super Admin and Editor accounts."
+          >
+            <div className="space-y-4">
+              <div className="flex flex-col gap-3 rounded-xl border border-line bg-canvas p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
+                      profile?.mfaEnabled
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    <ShieldCheckIcon size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-ink">
+                        {profile?.mfaEnabled
+                          ? 'Two-Factor Authentication is Active'
+                          : 'Two-Factor Authentication is Disabled'}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase ${
+                          profile?.mfaEnabled
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}
+                      >
+                        {profile?.mfaEnabled ? 'Protected' : 'Off'}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-ink-2">
+                      {profile?.mfaEnabled
+                        ? `Enrolled with Google Authenticator / TOTP. Last updated: ${
+                            profile.mfaEnrolledAt
+                              ? new Date(profile.mfaEnrolledAt).toLocaleDateString()
+                              : 'Active'
+                          }`
+                        : 'Recommended for Super Admin & Editor accounts to prevent unauthorized access.'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowMfaModal(true)}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-primary-900 px-4 text-xs font-bold text-white transition hover:bg-primary-700"
+                >
+                  <ShieldCheckIcon size={14} />
+                  <span>{profile?.mfaEnabled ? 'Manage / Test 2FA' : 'Set Up 2FA Now'}</span>
+                </button>
+              </div>
+
+              <div className="grid gap-3 pt-2 sm:grid-cols-3 text-xs">
+                <div className="rounded-xl border border-line bg-card p-3.5 space-y-1">
+                  <p className="font-bold text-ink">Google &amp; Microsoft Authenticator</p>
+                  <p className="text-ink-2 leading-relaxed">
+                    Uses standard RFC 6238 TOTP algorithm with 30-second rotating codes.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-line bg-card p-3.5 space-y-1">
+                  <p className="font-bold text-ink">Browser-Session Persistence</p>
+                  <p className="text-ink-2 leading-relaxed">
+                    Credentials and tokens automatically purge upon browser or tab close.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-line bg-card p-3.5 space-y-1">
+                  <p className="font-bold text-ink">15-Min Inactivity Auto-Logout</p>
+                  <p className="text-ink-2 leading-relaxed">
+                    Automatic session termination on idle mouse, keyboard, and scroll state.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+        </div>
+      )}
+
+      {/* Two-Factor Authentication Modal */}
+      <MfaModal isOpen={showMfaModal} onClose={() => setShowMfaModal(false)} />
     </div>
   )
 }
