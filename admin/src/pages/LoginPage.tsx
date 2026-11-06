@@ -31,6 +31,9 @@ export function LoginPage() {
     signupWithInvite,
     claimInviteForCurrentUser,
     resetPassword,
+    mfaChallengeRequired,
+    resolveMfaWithCode,
+    cancelMfaChallenge,
     error,
     clearError,
   } = useAuth()
@@ -48,6 +51,7 @@ export function LoginPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState(queryEmail)
   const [password, setPassword] = useState('')
+  const [mfaCode, setMfaCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const { isLocked, remainingSeconds, recordFailedAttempt, resetRateLimit } = useLoginRateLimiter()
@@ -128,6 +132,78 @@ export function LoginPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleMfaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    clearError()
+    setSubmitting(true)
+    try {
+      await resolveMfaWithCode(mfaCode)
+      resetRateLimit()
+    } catch {
+      // Handled via AuthContext error state
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (mfaChallengeRequired) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-canvas p-6 font-sans">
+        <div className="w-full max-w-md rounded-2xl border border-line bg-card p-8 shadow-card">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-primary-900">
+            <ShieldCheckIcon size={24} />
+          </div>
+          <h2 className="mt-4 text-center text-xl font-bold text-ink">Two-Factor Authentication</h2>
+          <p className="mt-2 text-center text-xs text-ink-2">
+            This administrative account has Multi-Factor Authentication enabled. Enter the 6-digit verification code from your Google Authenticator or mobile app.
+          </p>
+
+          {error && (
+            <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+              <AlertCircleIcon size={16} className="mt-0.5 shrink-0 text-red-600" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleMfaSubmit} className="mt-6 space-y-4">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-ink">
+                6-Digit Verification Code
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                autoFocus
+                required
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="123456"
+                className="mt-1.5 w-full text-center text-2xl font-mono tracking-[0.3em] rounded-xl border border-line-strong bg-canvas px-4 py-3 text-ink focus:border-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={submitting || mfaCode.length !== 6}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary-900 font-bold text-white shadow-soft transition hover:bg-primary-700 disabled:opacity-50"
+            >
+              {submitting ? <RefreshIcon size={16} className="animate-spin" /> : <ShieldCheckIcon size={16} />}
+              <span>Verify & Continue</span>
+            </button>
+            <button
+              type="button"
+              onClick={cancelMfaChallenge}
+              className="w-full text-center text-xs font-semibold text-ink-2 hover:text-ink"
+            >
+              &larr; Cancel and Return to Sign In
+            </button>
+          </form>
+        </div>
+      </div>
+    )
   }
 
   return (

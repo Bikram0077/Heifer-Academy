@@ -15,9 +15,12 @@ import {
   signOut as fbSignOut,
   sendPasswordResetEmail,
   onAuthStateChanged,
+  getMultiFactorResolver,
+  TotpMultiFactorGenerator,
   type ActionCodeSettings,
   type Auth,
   type User,
+  type MultiFactorResolver,
 } from 'firebase/auth'
 import {
   getFirestore,
@@ -35,6 +38,7 @@ import { extractFirebaseAuthAction } from '@shared/authAction'
 import { auth, db } from '../firebase'
 import type { Role, UserProfile, Invite } from '@shared/schema'
 import { tokenStore } from '@shared/security/tokens'
+import { validateSuperAdminPassword } from '@shared/security/passwordPolicy'
 import {
   dispatchCredentialsViaRelay,
   getStoredStaffCredential,
@@ -72,6 +76,9 @@ type AuthContextType = {
   loading: boolean
   error: string | null
   clearError: () => void
+  mfaChallengeRequired: boolean
+  resolveMfaWithCode: (code: string) => Promise<void>
+  cancelMfaChallenge: () => void
   login: (email: string, pass: string) => Promise<void>
   logout: (redirectUrl?: string) => Promise<void>
   bootstrapSuperAdmin: (name: string, email: string, pass: string) => Promise<void>
@@ -182,6 +189,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pendingInviteRole, setPendingInviteRole] = useState<Role | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null)
+  const [mfaChallengeRequired, setMfaChallengeRequired] = useState(false)
 
   // Listen to meta/bootstrap document (matches firestore.rules exists(bootstrapPath()))
   useEffect(() => {
@@ -308,8 +317,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         // Fallback gracefully
       }
+      setMfaResolver(null)
+      setMfaChallengeRequired(false)
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
+      if (e.code === 'auth/multi-factor-auth-required') {
+        const resolver = getMultiFactorResolver(auth, err as any)
+        setMfaResolver(resolver)
+        setMfaChallengeRequired(true)
+        setLoading(false)
+        return
+      }
       let msg = 'Invalid email or password. Please verify your credentials or contact your administrator.'
       if (e.code === 'auth/too-many-requests') {
         msg = 'Too many failed login attempts. Access temporarily restricted. Please wait a moment and try again.'
@@ -319,6 +337,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const resolveMfaWithCode = async (totpCode: string) => {
+    if (!mfaResolver) throw new Error('No active two-factor challenge found.')
+    setError(null)
+    setLoading(true)
+    try {
+      const cleanCode = totpCode.trim().replace(/\s+/g, '')
+      if (!/^\d{6}$/.test(cleanCode)) {
+        throw new Error('Please enter a valid 6-digit numeric verification code.')
+      }
+
+      const totpHint = mfaResolver.hints.find(
+        (h) => h.factorId === TotpMultiFactorGenerator.FACTOR_ID
+      )
+      if (!totpHint) {
+        throw new Error('No supported authenticator app factor enrolled for this account.')
+      }
+
+      const assertion = TotpMultiFactorGenerator.assertionForSignIn(
+        totpHint.uid,
+        cleanCode
+      )
+      const cred = await mfaResolver.resolveSignIn(assertion)
+      try {
+        const idToken = await cred.user.getIdToken()
+        tokenStore.setAccessToken(idToken, 15 * 60)
+      } catch {
+        // Fallback gracefully
+      }
+      setMfaResolver(null)
+      setMfaChallengeRequired(false)
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      let msg = e.message || 'Two-factor verification failed. Please try again.'
+      if (e.code === 'auth/invalid-verification-code') {
+        msg = 'Invalid 6-digit verification code. Please check your authenticator app.'
+      }
+      setError(msg)
+      throw new Error(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const cancelMfaChallenge = () => {
+    setMfaResolver(null)
+    setMfaChallengeRequired(false)
+    setError(null)
   }
 
   const logout = async (redirectTarget?: string | unknown) => {
@@ -385,6 +452,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null)
     setLoading(true)
     try {
+      const pwCheck = validateSuperAdminPassword(pass)
+      if (!pwCheck.valid) {
+        throw new Error(pwCheck.errors[0])
+      }
       await setPersistence(auth, browserSessionPersistence)
       const normalizedEmail = email.trim().toLowerCase()
       let uid: string
@@ -442,6 +513,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null)
     setLoading(true)
     try {
+      const pwCheck = validateSuperAdminPassword(pass)
+      if (!pwCheck.valid) {
+        throw new Error(pwCheck.errors[0])
+      }
       await setPersistence(auth, browserSessionPersistence)
       const normalizedEmail = email.trim().toLowerCase()
       let uid: string
@@ -908,6 +983,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         error,
         clearError: () => setError(null),
+        mfaChallengeRequired,
+        resolveMfaWithCode,
+        cancelMfaChallenge,
         login,
         logout,
         bootstrapSuperAdmin,

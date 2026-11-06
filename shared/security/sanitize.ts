@@ -180,3 +180,4 @@ export function isSafeUrl(url: string | undefined | null): boolean {
   if (DANGEROUS_SCHEME_REGEX.test(trimmed)) return false
   return SAFE_SCHEME_REGEX.test(trimmed)
 }
+

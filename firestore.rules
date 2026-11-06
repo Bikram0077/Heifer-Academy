@@ -69,7 +69,10 @@ service cloud.firestore {
         && d.type in ['course', 'category', 'testimonial', 'faq', 'partner', 'page', 'strings', 'settings']
         && d.data is map
         && d.order is number
-        && d.updatedBy == request.auth.uid;
+        && d.order >= 0
+        && d.order <= 100000
+        && d.updatedBy == request.auth.uid
+        && d.updatedBy.size() <= 128;
     }
     // Site settings may only be changed by super admins.
     function canWriteType(t) {
@@ -80,13 +83,13 @@ service cloud.firestore {
 
     match /live/{id} {
       allow read: if true;
-      allow create, update: if isEditor() && id.size() <= 128 && validContent() && canWriteType(request.resource.data.type);
+      allow create, update: if isEditor() && id.matches('^[a-zA-Z0-9_-]{1,128}$') && validContent() && canWriteType(request.resource.data.type);
       allow delete: if isEditor() && canWriteType(resource.data.type);
     }
 
     match /drafts/{id} {
       allow read: if isStaff();
-      allow create, update: if isEditor() && id.size() <= 128 && validContent() && canWriteType(request.resource.data.type);
+      allow create, update: if isEditor() && id.matches('^[a-zA-Z0-9_-]{1,128}$') && validContent() && canWriteType(request.resource.data.type);
       allow delete: if isEditor() && canWriteType(resource.data.type);
     }
 
@@ -148,6 +151,7 @@ service cloud.firestore {
       allow create, update: if isSuper()
         && email == email.lower()
         && email.size() <= 254
+        && email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$')
         && request.resource.data.keys().hasOnly(['email', 'name', 'role', 'invitedBy', 'invitedAt'])
         && request.resource.data.email == email
         && validRole(request.resource.data.role);
@@ -156,7 +160,7 @@ service cloud.firestore {
 
     // ---------- learner feedback & suggestions ----------
     match /feedback/{id} {
-      allow create: if id.size() <= 128
+      allow create: if id.matches('^[a-zA-Z0-9_-]{1,128}$')
         && request.resource.data.keys().hasAll(['suggestions', 'createdAt'])
         && request.resource.data.keys().hasOnly([
           'fullName',

@@ -9,8 +9,12 @@ import {
 } from 'firebase/auth'
 import { getFirestore, initializeFirestore, type Firestore } from 'firebase/firestore'
 import { firebaseConfig } from '@shared/firebaseConfig'
+import { initAppCheck } from '@shared/firebaseAppCheck'
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)
+
+// Enforce Firebase App Check for CMS administration queries
+initAppCheck(app)
 
 function initAuth(): Auth {
   try {
